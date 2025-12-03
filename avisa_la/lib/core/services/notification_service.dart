@@ -1,4 +1,5 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'dart:typed_data';
 import 'package:avisa_la/core/utils/constants.dart';
 import 'dart:io' show Platform;
 
@@ -45,7 +46,7 @@ class NotificationService {
   /// Cria os channels de notificação (Android)
   static Future<void> _createNotificationChannels() async {
     // Channel de monitoramento (baixa prioridade, persistente)
-    const AndroidNotificationChannel monitoringChannel =
+    final AndroidNotificationChannel monitoringChannel =
         AndroidNotificationChannel(
       AppConstants.monitoringChannelId,
       AppConstants.monitoringChannelName,
@@ -57,7 +58,7 @@ class NotificationService {
     );
 
     // Channel de alerta de chegada (alta prioridade)
-    const AndroidNotificationChannel arrivalChannel =
+    final AndroidNotificationChannel arrivalChannel =
         AndroidNotificationChannel(
       AppConstants.arrivalChannelId,
       AppConstants.arrivalChannelName,
@@ -69,7 +70,7 @@ class NotificationService {
     );
 
     // Channel de falha (alta prioridade)
-    const AndroidNotificationChannel failureChannel =
+    final AndroidNotificationChannel failureChannel =
         AndroidNotificationChannel(
       AppConstants.failureChannelId,
       AppConstants.failureChannelName,
@@ -146,7 +147,7 @@ class NotificationService {
   static Future<void> showArrivalNotification({
     required double distance,
   }) async {
-    const AndroidNotificationDetails androidDetails =
+    final AndroidNotificationDetails androidDetails =
         AndroidNotificationDetails(
       AppConstants.arrivalChannelId,
       AppConstants.arrivalChannelName,
@@ -172,7 +173,7 @@ class NotificationService {
       sound: 'default',
     );
 
-    const NotificationDetails details = NotificationDetails(
+    final NotificationDetails details = NotificationDetails(
       android: androidDetails,
       iOS: iosDetails,
     );

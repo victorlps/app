@@ -33,7 +33,7 @@ class _TripMonitoringPageState extends State<TripMonitoringPage> {
   String _gpsQuality = 'Aguardando...';
   StreamSubscription<Position>? _positionStream;
   Set<Marker> _markers = {};
-  bool _isMonitoring = false;
+  
 
   @override
   void initState() {
@@ -42,7 +42,7 @@ class _TripMonitoringPageState extends State<TripMonitoringPage> {
   }
 
   Future<void> _startMonitoring() async {
-    setState(() => _isMonitoring = true);
+    // start UI updates for monitoring (no local _isMonitoring flag needed)
 
     // Iniciar serviço em segundo plano
     await BackgroundService.startTrip(
@@ -175,7 +175,7 @@ class _TripMonitoringPageState extends State<TripMonitoringPage> {
   }
 
   Future<void> _cleanup() async {
-    setState(() => _isMonitoring = false);
+    // stop UI monitoring updates
     _positionStream?.cancel();
     await BackgroundService.stopTrip();
     await NotificationService.cancelAllNotifications();

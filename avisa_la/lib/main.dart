@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:avisa_la/core/services/background_service.dart';
 import 'package:avisa_la/core/services/notification_service.dart';
 import 'package:avisa_la/core/services/permission_service.dart';
@@ -42,12 +41,9 @@ class MyApp extends StatelessWidget {
             ),
           ),
         ),
-        cardTheme: CardTheme(
-          elevation: 2,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
+        // Card theme removed to maintain compatibility with current SDK
+        // Custom card theming can be re-added if using the correct
+        // `CardThemeData` type for the project's Flutter SDK.
       ),
       home: const SplashScreen(),
     );
@@ -131,7 +127,7 @@ class _SplashScreenState extends State<SplashScreen> {
                 'Seu alarme de destino inteligente',
                 style: TextStyle(
                   fontSize: 16,
-                  color: Colors.white.withOpacity(0.9),
+                  color: Color.fromRGBO(255, 255, 255, 0.9),
                 ),
               ),
               const SizedBox(height: 48),

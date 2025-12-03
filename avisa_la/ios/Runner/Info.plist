@@ -66,8 +66,11 @@
         <string>remote-notification</string>
     </array>
 
-    <!-- Google Maps API Key -->
+    <!-- Google Maps API Key (iOS support is disabled for now). -->
+    <!-- If you enable iOS support later, restore the GMSApiKey entry below and add your API key. -->
+    <!--
     <key>GMSApiKey</key>
-    <string>YOUR_GOOGLE_MAPS_API_KEY_HERE</string>
+    <string>AIzaSyC1rt4WghzL5ucAVWFi_YMD8xD92llic4s</string>
+    -->
 </dict>
 </plist>

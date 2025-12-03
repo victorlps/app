@@ -2,6 +2,8 @@
 
 Este guia detalha todos os passos necessários para configurar e executar o projeto Avisa Lá localmente.
 
+> **Nota (temporária):** o desenvolvimento e testes serão feitos apenas para **Android** neste momento. As seções de iOS no guia permanecem para referência, mas você pode pular os passos de configuração e build de iOS até que decida ativar suporte multiplataforma.
+
 ## 📥 Passo 1: Copiar o Projeto para sua Máquina Local
 
 ### Opção A: Copiar Arquivos Manualmente

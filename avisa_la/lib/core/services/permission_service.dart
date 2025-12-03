@@ -1,46 +1,46 @@
-import 'package:permission_handler/permission_handler.dart';
+import 'package:permission_handler/permission_handler.dart' as permission_handler;
 import 'package:flutter/material.dart';
 
 class PermissionService {
   /// Solicita permissão de localização básica (while in use)
   static Future<bool> requestLocationPermission() async {
-    final status = await Permission.location.request();
+    final status = await permission_handler.Permission.location.request();
     return status.isGranted;
   }
 
   /// Solicita permissão de localização em segundo plano (always)
   static Future<bool> requestBackgroundLocationPermission() async {
-    final status = await Permission.locationAlways.request();
+    final status = await permission_handler.Permission.locationAlways.request();
     return status.isGranted;
   }
 
   /// Solicita permissão de notificações
   static Future<bool> requestNotificationPermission() async {
-    final status = await Permission.notification.request();
+    final status = await permission_handler.Permission.notification.request();
     return status.isGranted;
   }
 
   /// Solicita ignoração de otimização de bateria (Android)
   static Future<bool> requestIgnoreBatteryOptimizations() async {
-    final status = await Permission.ignoreBatteryOptimizations.request();
+    final status = await permission_handler.Permission.ignoreBatteryOptimizations.request();
     return status.isGranted;
   }
 
   /// Verifica se todas as permissões essenciais foram concedidas
   static Future<bool> hasAllEssentialPermissions() async {
-    final location = await Permission.location.isGranted;
-    final notification = await Permission.notification.isGranted;
+    final location = await permission_handler.Permission.location.isGranted;
+    final notification = await permission_handler.Permission.notification.isGranted;
     return location && notification;
   }
 
   /// Verifica se tem permissão de localização em segundo plano
   static Future<bool> hasBackgroundLocationPermission() async {
-    return await Permission.locationAlways.isGranted;
+    return await permission_handler.Permission.locationAlways.isGranted;
   }
 
   /// Abre as configurações do app
   static Future<void> openAppSettings() async {
-    await openAppSettings();
+    await permission_handler.openAppSettings();
   }
 
   /// Mostra diálogo educativo explicando a necessidade de permissão

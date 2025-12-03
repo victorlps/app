@@ -1,13 +1,12 @@
 import 'dart:async';
 import 'dart:ui';
 import 'package:flutter_background_service/flutter_background_service.dart';
-import 'package:flutter_background_service_android/flutter_background_service_android.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:avisa_la/core/models/destination.dart';
 import 'package:avisa_la/core/utils/distance_calculator.dart';
 import 'package:avisa_la/core/utils/constants.dart';
 import 'package:avisa_la/core/services/notification_service.dart';
-import 'dart:convert';
+// 'dart:convert' removed (unused)
 
 class BackgroundService {
   static final FlutterBackgroundService _service =
@@ -50,7 +49,10 @@ class BackgroundService {
   static Future<void> stopTrip() async {
     _service.invoke('stopTrip');
     await Future.delayed(const Duration(milliseconds: 500));
-    await _service.stopService();
+    // The background service will stop itself after handling the 'stopTrip' event.
+    // Older versions of the plugin exposed a `stopService` method; to remain
+    // compatible with the current package we avoid calling a non-existent
+    // method here.
   }
 
   /// Verifica se o serviço está rodando
@@ -67,13 +69,12 @@ class BackgroundService {
     double alertDistance = AppConstants.defaultAlertDistance;
     bool useDynamicMode = false;
     bool hasAlerted = false;
-    Timer? monitoringTimer;
     Timer? healthCheckTimer;
     StreamSubscription<Position>? positionStream;
 
     // Escuta comandos
     service.on('startTrip').listen((event) async {
-      final data = event as Map<String, dynamic>?;
+      final data = event;
       if (data == null) return;
 
       destination = Destination.fromJson(data['destination']);
@@ -156,7 +157,6 @@ class BackgroundService {
     // Escuta comando de parar
     service.on('stopTrip').listen((event) async {
       positionStream?.cancel();
-      monitoringTimer?.cancel();
       healthCheckTimer?.cancel();
       await NotificationService.cancelAllNotifications();
       service.stopSelf();
