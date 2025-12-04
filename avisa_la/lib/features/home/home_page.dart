@@ -21,8 +21,9 @@ class _HomePageState extends State<HomePage> {
   Destination? _selectedDestination;
   double _alertDistance = AppConstants.defaultAlertDistance;
   bool _useDynamicMode = false;
+  double _alertTimeMinutes = 5.0; // Tempo de alerta em minutos (para modo dinâmico)
   bool _isLoadingLocation = true;
-  Set<Marker> _markers = {};
+  final Set<Marker> _markers = {};
 
   @override
   void initState() {
@@ -119,7 +120,8 @@ class _HomePageState extends State<HomePage> {
       _markers.add(
         Marker(
           markerId: const MarkerId('current'),
-          position: LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
+          position:
+              LatLng(_currentPosition!.latitude, _currentPosition!.longitude),
           icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
           infoWindow: const InfoWindow(title: 'Você está aqui'),
         ),
@@ -169,6 +171,7 @@ class _HomePageState extends State<HomePage> {
             destination: _selectedDestination!,
             alertDistance: _alertDistance,
             useDynamicMode: _useDynamicMode,
+            alertTimeMinutes: _alertTimeMinutes,
           ),
         ),
       );
@@ -322,9 +325,9 @@ class _HomePageState extends State<HomePage> {
                       ),
                       const SizedBox(height: 8),
                       SwitchListTile(
-                        title: const Text('Modo Dinâmico'),
+                        title: const Text('Modo Dinâmico (Tempo)'),
                         subtitle: const Text(
-                          'Ajusta automaticamente baseado na velocidade',
+                          'Alertar também baseado no tempo estimado',
                           style: TextStyle(fontSize: 12),
                         ),
                         value: _useDynamicMode,
@@ -333,6 +336,31 @@ class _HomePageState extends State<HomePage> {
                         },
                         contentPadding: EdgeInsets.zero,
                       ),
+                      // Slider de tempo (aparece quando modo dinâmico está ativo)
+                      if (_useDynamicMode) ...[
+                        const SizedBox(height: 12),
+                        const Text(
+                          'Tempo de alerta:',
+                          style: TextStyle(fontWeight: FontWeight.w500),
+                        ),
+                        Slider(
+                          value: _alertTimeMinutes,
+                          min: 1,
+                          max: 30,
+                          divisions: 29,
+                          label: '${_alertTimeMinutes.round()} min',
+                          onChanged: (value) {
+                            setState(() => _alertTimeMinutes = value);
+                          },
+                        ),
+                        Text(
+                          'Alerta ${_alertTimeMinutes.round()} minutos antes do destino',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 16),
                       SizedBox(
                         width: double.infinity,

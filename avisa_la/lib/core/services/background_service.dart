@@ -6,6 +6,7 @@ import 'package:avisa_la/core/models/destination.dart';
 import 'package:avisa_la/core/utils/distance_calculator.dart';
 import 'package:avisa_la/core/utils/constants.dart';
 import 'package:avisa_la/core/services/notification_service.dart';
+import 'package:avisa_la/core/services/directions_service.dart';
 // 'dart:convert' removed (unused)
 
 class BackgroundService {
@@ -34,11 +35,13 @@ class BackgroundService {
     required Destination destination,
     required double alertDistance,
     required bool useDynamicMode,
+    required double alertTimeMinutes,
   }) async {
     final Map<String, dynamic> data = {
       'destination': destination.toJson(),
       'alertDistance': alertDistance,
       'useDynamicMode': useDynamicMode,
+      'alertTimeMinutes': alertTimeMinutes,
     };
 
     await _service.startService();
@@ -68,8 +71,10 @@ class BackgroundService {
     Destination? destination;
     double alertDistance = AppConstants.defaultAlertDistance;
     bool useDynamicMode = false;
+    double alertTimeMinutes = 5.0;
     bool hasAlerted = false;
     Timer? healthCheckTimer;
+    Timer? directionsCheckTimer;
     StreamSubscription<Position>? positionStream;
 
     // Escuta comandos
@@ -80,6 +85,7 @@ class BackgroundService {
       destination = Destination.fromJson(data['destination']);
       alertDistance = data['alertDistance'] as double;
       useDynamicMode = data['useDynamicMode'] as bool;
+      alertTimeMinutes = data['alertTimeMinutes'] as double;
       hasAlerted = false;
 
       // Inicializar NotificationService
@@ -89,6 +95,47 @@ class BackgroundService {
       await NotificationService.showMonitoringNotification(
         destinationName: destination!.name,
       );
+
+      // Se modo dinâmico, iniciar timer para verificar tempo real via Directions API
+      if (useDynamicMode) {
+        directionsCheckTimer = Timer.periodic(
+          const Duration(seconds: 30),
+          (timer) async {
+            if (destination == null) return;
+            
+            // Pegar posição atual
+            try {
+              final position = await Geolocator.getCurrentPosition();
+              
+              // Calcular tempo real via Directions API
+              final realTimeSeconds = await DirectionsService.getEstimatedTimeToDestination(
+                originLat: position.latitude,
+                originLng: position.longitude,
+                destLat: destination!.latitude,
+                destLng: destination!.longitude,
+              );
+              
+              if (realTimeSeconds != null) {
+                // Verificar se deve alertar baseado no tempo
+                final alertTimeSeconds = (alertTimeMinutes * 60).round();
+                if (realTimeSeconds <= alertTimeSeconds && !hasAlerted) {
+                  hasAlerted = true;
+                  await NotificationService.showArrivalNotification(
+                    distance: DistanceCalculator.calculateDistance(
+                      position.latitude,
+                      position.longitude,
+                      destination!.latitude,
+                      destination!.longitude,
+                    ),
+                  );
+                }
+              }
+            } catch (e) {
+              print('❌ Erro ao verificar tempo via Directions API: $e');
+            }
+          },
+        );
+      }
 
       // Iniciar monitoramento de posição
       positionStream = Geolocator.getPositionStream(
@@ -120,18 +167,10 @@ class BackgroundService {
           'accuracy': position.accuracy,
         });
 
-        // Verificar condição de proximidade
-        double effectiveAlertDistance = alertDistance;
-
-        if (useDynamicMode && position.speed > 0) {
-          effectiveAlertDistance =
-              DistanceCalculator.calculateDynamicAlertDistance(
-            position.speed,
-            AppConstants.dynamicModeWarningTimeSeconds,
-          );
-        }
-
-        if (distance <= effectiveAlertDistance && !hasAlerted) {
+        // Verificar condição de proximidade por distância
+        // No modo dinâmico, também verifica por tempo (no timer acima)
+        // Alerta se atingir a distância configurada
+        if (distance <= alertDistance && !hasAlerted) {
           hasAlerted = true;
           await NotificationService.showArrivalNotification(
             distance: distance,
@@ -158,6 +197,7 @@ class BackgroundService {
     service.on('stopTrip').listen((event) async {
       positionStream?.cancel();
       healthCheckTimer?.cancel();
+      directionsCheckTimer?.cancel();
       await NotificationService.cancelAllNotifications();
       service.stopSelf();
     });
