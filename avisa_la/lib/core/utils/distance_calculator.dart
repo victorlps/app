@@ -55,8 +55,14 @@ class DistanceCalculator {
 
   /// Estima tempo de chegada baseado na distância e velocidade
   /// Retorna tempo em segundos
+  /// Se velocidade for muito baixa, usa velocidade média urbana (30 km/h) como fallback
   static int estimateArrivalTime(double distanceMeters, double speedMps) {
-    if (speedMps <= 0) return 0;
+    // Se velocidade é muito baixa (< 1 m/s = 3.6 km/h), usar velocidade média urbana
+    if (speedMps < 1.0) {
+      // 30 km/h = 8.33 m/s (velocidade média urbana razoável)
+      const fallbackSpeedMps = 8.33;
+      return (distanceMeters / fallbackSpeedMps).round();
+    }
     return (distanceMeters / speedMps).round();
   }
 
