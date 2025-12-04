@@ -8,8 +8,6 @@ import 'package:avisa_la/core/utils/constants.dart';
 import 'package:avisa_la/features/search/destination_search_page.dart';
 import 'package:avisa_la/features/trip_monitoring/trip_monitoring_page.dart';
 import 'package:geolocator/geolocator.dart';
-import 'dart:convert';
-import 'package:http/http.dart' as http;
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -223,7 +221,26 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Avisa Lá'),
+        title: Row(
+          children: [
+            const Text('Avisa Lá'),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: Colors.white24,
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                'v${AppConstants.appVersion}',
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.my_location),

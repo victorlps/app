@@ -30,6 +30,9 @@ class AppConstants {
   static const String failureChannelId = 'failure_alert_channel';
   static const String failureChannelName = 'Service Failure';
 
+  // Versão do app
+  static const String appVersion = '1.0.0+1';
+
   // Chaves de armazenamento
   static const String keyLastDestination = 'last_destination';
   static const String keyAlertDistance = 'alert_distance';
