@@ -84,15 +84,11 @@ class _TripMonitoringPageState extends State<TripMonitoringPage> {
             widget.destination.longitude,
           );
 
-          // Estimar tempo de chegada
-          if (_currentSpeed != null && _currentSpeed! > 0) {
-            _estimatedTimeSeconds = DistanceCalculator.estimateArrivalTime(
-              _distanceToDestination!,
-              _currentSpeed!,
-            );
-          } else {
-            _estimatedTimeSeconds = null;
-          }
+          // Estimar tempo de chegada - SEMPRE calcula, usando fallback quando necessário
+          _estimatedTimeSeconds = DistanceCalculator.estimateArrivalTime(
+            _distanceToDestination!,
+            _currentSpeed ?? 0.0, // Usa 0 se velocidade for null, fallback será aplicado
+          );
 
           _updateMarkers();
         });
