@@ -5,6 +5,7 @@ import 'package:avisa_la/core/models/destination.dart';
 import 'package:avisa_la/core/services/background_service.dart';
 import 'package:avisa_la/core/services/geolocation_service.dart';
 import 'package:avisa_la/core/services/notification_service.dart';
+import 'package:avisa_la/core/services/directions_service.dart';
 import 'package:avisa_la/core/utils/distance_calculator.dart';
 import 'dart:async';
 
@@ -12,12 +13,14 @@ class TripMonitoringPage extends StatefulWidget {
   final Destination destination;
   final double alertDistance;
   final bool useDynamicMode;
+  final double alertTimeMinutes;
 
   const TripMonitoringPage({
     super.key,
     required this.destination,
     required this.alertDistance,
     required this.useDynamicMode,
+    required this.alertTimeMinutes,
   });
 
   @override
@@ -29,7 +32,8 @@ class _TripMonitoringPageState extends State<TripMonitoringPage> {
   Position? _currentPosition;
   double? _distanceToDestination;
   double? _currentSpeed;
-  int? _estimatedTimeSeconds;
+  int? _estimatedTimeSeconds; // Tempo estimado simples (distância/velocidade)
+  int? _realEstimatedTimeSeconds; // Tempo estimado real do Google Maps
   String _gpsQuality = 'Aguardando...';
   StreamSubscription<Position>? _positionStream;
   Set<Marker> _markers = {};
@@ -49,7 +53,17 @@ class _TripMonitoringPageState extends State<TripMonitoringPage> {
       destination: widget.destination,
       alertDistance: widget.alertDistance,
       useDynamicMode: widget.useDynamicMode,
+      alertTimeMinutes: widget.alertTimeMinutes,
     );
+
+    // Se modo dinâmico estiver ativo, iniciar timer para atualizar tempo real
+    if (widget.useDynamicMode) {
+      _updateRealEstimatedTime(); // Atualizar imediatamente
+      _directionsTimer = Timer.periodic(
+        const Duration(seconds: 30), // Atualizar a cada 30 segundos
+        (_) => _updateRealEstimatedTime(),
+      );
+    }
 
     // Iniciar stream de posição local para atualizar UI
     _positionStream = GeolocationService.getPositionStream().listen(
@@ -174,9 +188,28 @@ class _TripMonitoringPageState extends State<TripMonitoringPage> {
     }
   }
 
-  Future<void> _cleanup() async {
+  /// Atualiza o tempo estimado real usando Google Maps Directions API
+  Future<void> _updateRealEstimatedTime() async {
+    if (_currentPosition == null) return;
+
+    final timeSeconds = await DirectionsService.getEstimatedTimeToDestination(
+      originLat: _currentPosition!.latitude,
+      originLng: _currentPosition!.longitude,
+      destLat: widget.destination.latitude,
+      destLng: widget.destination.longitude,
+    );
+
+    if (timeSeconds != null && mounted) {
+      setState(() {
+        _realEstimatedTimeSeconds = timeSeconds;
+      });
+    }
+  }
+
+    Future<void> _cleanup() async {
     // stop UI monitoring updates
     _positionStream?.cancel();
+    _directionsTimer?.cancel();
     await BackgroundService.stopTrip();
     await NotificationService.cancelAllNotifications();
   }
