@@ -229,7 +229,9 @@ class _DestinationSearchPageState extends State<DestinationSearchPage> {
           ),
         ),
       ),
-      body: _buildBody(),
+      body: SafeArea(
+        child: _buildBody(),
+      ),
     );
   }
 
