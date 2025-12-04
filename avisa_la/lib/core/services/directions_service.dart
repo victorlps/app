@@ -59,7 +59,8 @@ class DirectionsService {
           return null;
         }
       } else {
-        print('❌ Erro na Routes API: ${response.statusCode} - ${response.body}');
+        print(
+            '❌ Erro na Routes API: ${response.statusCode} - ${response.body}');
         return null;
       }
     } catch (e) {

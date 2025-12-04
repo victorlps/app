@@ -2,7 +2,7 @@ name: avisa_la
 description: Alarme de destino inteligente para transporte público
 publish_to: 'none'
 
-version: 1.0.0+3
+version: 1.0.0+1764854987
 
 environment:
   sdk: '>=3.0.0 <4.0.0'

@@ -9,6 +9,7 @@ import 'package:avisa_la/features/search/destination_search_page.dart';
 import 'package:avisa_la/features/trip_monitoring/trip_monitoring_page.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'dart:io';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -38,10 +39,39 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _loadAppVersion() async {
-    final packageInfo = await PackageInfo.fromPlatform();
-    setState(() {
-      _appVersion = '${packageInfo.version}+${packageInfo.buildNumber}';
-    });
+    try {
+      // Ler versão do pubspec.yaml em tempo real
+      final pubspecFile = File('pubspec.yaml');
+      if (await pubspecFile.exists()) {
+        final content = await pubspecFile.readAsString();
+        final versionMatch =
+            RegExp(r'version:\s*([0-9.+]+)').firstMatch(content);
+        if (versionMatch != null && mounted) {
+          final fullVersion = versionMatch.group(1) ?? '';
+          // Extrair apenas o timestamp (parte depois do +)
+          final parts = fullVersion.split('+');
+          setState(() {
+            _appVersion = parts.length > 1 ? parts[1] : fullVersion;
+          });
+          print('✅ Versão carregada do pubspec.yaml: $_appVersion');
+          return;
+        }
+      }
+    } catch (e) {
+      print('⚠️ Erro ao ler pubspec.yaml: $e');
+    }
+
+    // Fallback: ler do PackageInfo
+    try {
+      final packageInfo = await PackageInfo.fromPlatform();
+      if (mounted) {
+        setState(() {
+          _appVersion = '${packageInfo.version}+${packageInfo.buildNumber}';
+        });
+      }
+    } catch (e) {
+      print('⚠️ Erro ao carregar versão: $e');
+    }
   }
 
   Future<void> _loadCurrentLocation() async {
@@ -325,132 +355,135 @@ class _HomePageState extends State<HomePage> {
           // Card de destino selecionado
           if (_selectedDestination != null)
             Positioned(
-              bottom: 16,
+              bottom: 0,
               left: 16,
               right: 16,
-              child: Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  _selectedDestination!.name,
-                                  style: const TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
+              child: SafeArea(
+                minimum: const EdgeInsets.only(bottom: 16, top: 16),
+                child: Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    _selectedDestination!.name,
+                                    style: const TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  _selectedDestination!.address,
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    color: Colors.grey[600],
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    _selectedDestination!.address,
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.grey[600],
+                                    ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
-                          ),
-                          IconButton(
-                            icon: const Icon(Icons.close),
-                            onPressed: () {
-                              setState(() {
-                                _selectedDestination = null;
-                                _updateMarkers();
-                              });
-                            },
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 16),
-                      const Text(
-                        'Distância de alerta:',
-                        style: TextStyle(fontWeight: FontWeight.w500),
-                      ),
-                      Slider(
-                        value: _alertDistance,
-                        min: 200,
-                        max: 1000,
-                        divisions: 8,
-                        label: '${_alertDistance.round()}m',
-                        onChanged: (value) {
-                          setState(() => _alertDistance = value);
-                        },
-                      ),
-                      Text(
-                        'Alerta ${_alertDistance.round()}m antes do destino',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey[600],
+                            IconButton(
+                              icon: const Icon(Icons.close),
+                              onPressed: () {
+                                setState(() {
+                                  _selectedDestination = null;
+                                  _updateMarkers();
+                                });
+                              },
+                            ),
+                          ],
                         ),
-                      ),
-                      const SizedBox(height: 8),
-                      SwitchListTile(
-                        title: const Text('Modo Dinâmico (Tempo)'),
-                        subtitle: const Text(
-                          'Alertar também baseado no tempo estimado',
-                          style: TextStyle(fontSize: 12),
-                        ),
-                        value: _useDynamicMode,
-                        onChanged: (value) {
-                          setState(() => _useDynamicMode = value);
-                        },
-                        contentPadding: EdgeInsets.zero,
-                      ),
-                      // Slider de tempo (aparece quando modo dinâmico está ativo)
-                      if (_useDynamicMode) ...[
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 16),
                         const Text(
-                          'Tempo de alerta:',
+                          'Distância de alerta:',
                           style: TextStyle(fontWeight: FontWeight.w500),
                         ),
                         Slider(
-                          value: _alertTimeMinutes,
-                          min: 1,
-                          max: 30,
-                          divisions: 29,
-                          label: '${_alertTimeMinutes.round()} min',
+                          value: _alertDistance,
+                          min: 200,
+                          max: 1000,
+                          divisions: 8,
+                          label: '${_alertDistance.round()}m',
                           onChanged: (value) {
-                            setState(() => _alertTimeMinutes = value);
+                            setState(() => _alertDistance = value);
                           },
                         ),
                         Text(
-                          'Alerta ${_alertTimeMinutes.round()} minutos antes do destino',
+                          'Alerta ${_alertDistance.round()}m antes do destino',
                           style: TextStyle(
                             fontSize: 12,
                             color: Colors.grey[600],
                           ),
                         ),
-                      ],
-                      const SizedBox(height: 16),
-                      SizedBox(
-                        width: double.infinity,
-                        child: ElevatedButton(
-                          onPressed: _startTrip,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor:
-                                Theme.of(context).colorScheme.primary,
-                            foregroundColor: Colors.white,
+                        const SizedBox(height: 8),
+                        SwitchListTile(
+                          title: const Text('Modo Dinâmico (Tempo)'),
+                          subtitle: const Text(
+                            'Alertar também baseado no tempo estimado',
+                            style: TextStyle(fontSize: 12),
                           ),
-                          child: const Text(
-                            'Iniciar Viagem',
-                            style: TextStyle(fontSize: 16),
+                          value: _useDynamicMode,
+                          onChanged: (value) {
+                            setState(() => _useDynamicMode = value);
+                          },
+                          contentPadding: EdgeInsets.zero,
+                        ),
+                        // Slider de tempo (aparece quando modo dinâmico está ativo)
+                        if (_useDynamicMode) ...[
+                          const SizedBox(height: 12),
+                          const Text(
+                            'Tempo de alerta:',
+                            style: TextStyle(fontWeight: FontWeight.w500),
+                          ),
+                          Slider(
+                            value: _alertTimeMinutes,
+                            min: 1,
+                            max: 30,
+                            divisions: 29,
+                            label: '${_alertTimeMinutes.round()} min',
+                            onChanged: (value) {
+                              setState(() => _alertTimeMinutes = value);
+                            },
+                          ),
+                          Text(
+                            'Alerta ${_alertTimeMinutes.round()} minutos antes do destino',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[600],
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: 16),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: _startTrip,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor:
+                                  Theme.of(context).colorScheme.primary,
+                              foregroundColor: Colors.white,
+                            ),
+                            child: const Text(
+                              'Iniciar Viagem',
+                              style: TextStyle(fontSize: 16),
+                            ),
                           ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
-                ),
               ),
+            ),
         ],
       ),
     );

@@ -70,23 +70,26 @@ class _DestinationSearchPageState extends State<DestinationSearchPage> {
         'input': input,
         'languageCode': 'pt-BR',
         'includedRegionCodes': ['BR'],
+        if (widget.currentPosition != null) ...{
+          'origin': {
+            'latitude': widget.currentPosition!.latitude,
+            'longitude': widget.currentPosition!.longitude,
+          },
+          'locationBias': {
+            'circle': {
+              'center': {
+                'latitude': widget.currentPosition!.latitude,
+                'longitude': widget.currentPosition!.longitude,
+              },
+              'radius': 50000.0,
+            }
+          },
+        }
       };
-
-      if (widget.currentPosition != null) {
-        body['locationBias'] = {
-          'circle': {
-            'center': {
-              'latitude': widget.currentPosition!.latitude,
-              'longitude': widget.currentPosition!.longitude,
-            },
-            'radius': 50000.0,
-          }
-        };
-      }
 
       print('🔍 Autocomplete Request URL: $url');
       print('🔍 Request Body: ${json.encode(body)}');
-      
+
       final response = await http.post(
         url,
         headers: {
@@ -97,18 +100,24 @@ class _DestinationSearchPageState extends State<DestinationSearchPage> {
         },
         body: json.encode(body),
       );
-      
-      print('🔍 Response Status: ${response.statusCode}');
-      print('🔍 Response Body: ${response.body}');
 
+      print('🔍 Response Status: ${response.statusCode}');
+      
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
+        print('🔍 Full Response: ${json.encode(data)}');
 
         if (data['suggestions'] != null && mounted) {
+          final predictions = (data['suggestions'] as List)
+              .map((s) => PlacePrediction.fromNewApi(s))
+              .toList();
+          // Ordenar por distância (mais próximos primeiro)
+          predictions.sort((a, b) {
+            if (a.distanceMeters == null || b.distanceMeters == null) return 0;
+            return a.distanceMeters!.compareTo(b.distanceMeters!);
+          });
           setState(() {
-            _predictions = (data['suggestions'] as List)
-                .map((s) => PlacePrediction.fromNewApi(s))
-                .toList();
+            _predictions = predictions;
           });
           print('✅ Found ${_predictions.length} predictions');
         } else {
@@ -140,7 +149,7 @@ class _DestinationSearchPageState extends State<DestinationSearchPage> {
       );
 
       print('📍 Place Details Request URL: $url');
-      
+
       final response = await http.get(
         url,
         headers: {
@@ -151,7 +160,7 @@ class _DestinationSearchPageState extends State<DestinationSearchPage> {
           'X-Android-Cert': AppConstants.androidCertificateSHA1,
         },
       );
-      
+
       print('📍 Response Status: ${response.statusCode}');
       print('📍 Response Body: ${response.body}');
 
@@ -295,7 +304,21 @@ class _DestinationSearchPageState extends State<DestinationSearchPage> {
         return ListTile(
           leading: const Icon(Icons.location_on),
           title: Text(prediction.mainText),
-          subtitle: Text(prediction.secondaryText),
+          subtitle: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(prediction.secondaryText),
+              if (prediction.distanceMeters != null)
+                Text(
+                  '📍 ${(prediction.distanceMeters! / 1000).toStringAsFixed(1)} km',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.blue[600],
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+            ],
+          ),
           onTap: () => _getPlaceDetails(prediction.placeId),
         );
       },
@@ -308,21 +331,26 @@ class PlacePrediction {
   final String description;
   final String mainText;
   final String secondaryText;
+  final int? distanceMeters;
 
   PlacePrediction({
     required this.placeId,
     required this.description,
     required this.mainText,
     required this.secondaryText,
+    this.distanceMeters,
   });
 
   factory PlacePrediction.fromJson(Map<String, dynamic> json) {
-    final structuredFormatting = json['structured_formatting'] as Map<String, dynamic>?;
+    final structuredFormatting =
+        json['structured_formatting'] as Map<String, dynamic>?;
     return PlacePrediction(
       placeId: json['place_id'] as String,
       description: json['description'] as String,
-      mainText: structuredFormatting?['main_text'] as String? ?? json['description'] as String,
+      mainText: structuredFormatting?['main_text'] as String? ??
+          json['description'] as String,
       secondaryText: structuredFormatting?['secondary_text'] as String? ?? '',
+      distanceMeters: null,
     );
   }
 
@@ -330,15 +358,22 @@ class PlacePrediction {
   factory PlacePrediction.fromNewApi(Map<String, dynamic> json) {
     final placePrediction = json['placePrediction'] as Map<String, dynamic>?;
     final text = placePrediction?['text'] as Map<String, dynamic>?;
-    final structuredFormat = placePrediction?['structuredFormat'] as Map<String, dynamic>?;
+    final structuredFormat =
+        placePrediction?['structuredFormat'] as Map<String, dynamic>?;
     final mainText = structuredFormat?['mainText'] as Map<String, dynamic>?;
-    final secondaryText = structuredFormat?['secondaryText'] as Map<String, dynamic>?;
-    
+    final secondaryText =
+        structuredFormat?['secondaryText'] as Map<String, dynamic>?;
+    final distance = placePrediction?['distanceMeters'] as int?;
+
+    print('📍 PlacePrediction.fromNewApi() keys: ${placePrediction?.keys.toList()}');
+    print('📍 Place: ${mainText?['text']} - Distance: ${distance}m');
+
     return PlacePrediction(
       placeId: placePrediction?['placeId'] as String? ?? '',
       description: text?['text'] as String? ?? '',
       mainText: mainText?['text'] as String? ?? text?['text'] as String? ?? '',
       secondaryText: secondaryText?['text'] as String? ?? '',
+      distanceMeters: distance,
     );
   }
 }
