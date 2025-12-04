@@ -3,10 +3,13 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:avisa_la/core/models/destination.dart';
 import 'package:avisa_la/core/services/geolocation_service.dart';
 import 'package:avisa_la/core/services/permission_service.dart';
+import 'package:avisa_la/core/services/directions_service.dart';
 import 'package:avisa_la/core/utils/constants.dart';
 import 'package:avisa_la/features/search/destination_search_page.dart';
 import 'package:avisa_la/features/trip_monitoring/trip_monitoring_page.dart';
 import 'package:geolocator/geolocator.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -21,9 +24,11 @@ class _HomePageState extends State<HomePage> {
   Destination? _selectedDestination;
   double _alertDistance = AppConstants.defaultAlertDistance;
   bool _useDynamicMode = false;
-  double _alertTimeMinutes = 5.0; // Tempo de alerta em minutos (para modo dinâmico)
+  double _alertTimeMinutes =
+      5.0; // Tempo de alerta em minutos (para modo dinâmico)
   bool _isLoadingLocation = true;
   final Set<Marker> _markers = {};
+  final Set<Polyline> _polylines = {};
 
   @override
   void initState() {
@@ -85,6 +90,9 @@ class _HomePageState extends State<HomePage> {
         _updateMarkers();
       });
 
+      // Buscar e desenhar rota
+      await _drawRoute();
+
       // Mover câmera para mostrar ambos os pontos
       _mapController?.animateCamera(
         CameraUpdate.newLatLngBounds(
@@ -141,6 +149,39 @@ class _HomePageState extends State<HomePage> {
           infoWindow: InfoWindow(title: _selectedDestination!.name),
         ),
       );
+    }
+  }
+
+  Future<void> _drawRoute() async {
+    if (_currentPosition == null || _selectedDestination == null) {
+      return;
+    }
+
+    print('🗺️ Buscando rota...');
+
+    final routePoints = await DirectionsService.getRoutePolyline(
+      originLat: _currentPosition!.latitude,
+      originLng: _currentPosition!.longitude,
+      destLat: _selectedDestination!.latitude,
+      destLng: _selectedDestination!.longitude,
+    );
+
+    if (routePoints != null && mounted) {
+      setState(() {
+        _polylines.clear();
+        _polylines.add(
+          Polyline(
+            polylineId: const PolylineId('route'),
+            points: routePoints
+                .map((p) => LatLng(p['latitude']!, p['longitude']!))
+                .toList(),
+            color: Colors.blue,
+            width: 5,
+          ),
+        );
+      });
+
+      print('✅ Rota desenhada no mapa com ${routePoints.length} pontos!');
     }
   }
 
@@ -212,6 +253,7 @@ class _HomePageState extends State<HomePage> {
                     _updateMarkers();
                   },
                   markers: _markers,
+                  polylines: _polylines,
                   myLocationEnabled: true,
                   myLocationButtonEnabled: false,
                   zoomControlsEnabled: false,

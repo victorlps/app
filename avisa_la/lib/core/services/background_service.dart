@@ -10,8 +10,7 @@ import 'package:avisa_la/core/services/directions_service.dart';
 // 'dart:convert' removed (unused)
 
 class BackgroundService {
-  static final FlutterBackgroundService _service =
-      FlutterBackgroundService();
+  static final FlutterBackgroundService _service = FlutterBackgroundService();
 
   /// Inicializa o serviço em segundo plano
   static Future<void> initialize() async {
@@ -102,19 +101,20 @@ class BackgroundService {
           const Duration(seconds: 30),
           (timer) async {
             if (destination == null) return;
-            
+
             // Pegar posição atual
             try {
               final position = await Geolocator.getCurrentPosition();
-              
+
               // Calcular tempo real via Directions API
-              final realTimeSeconds = await DirectionsService.getEstimatedTimeToDestination(
+              final realTimeSeconds =
+                  await DirectionsService.getEstimatedTimeToDestination(
                 originLat: position.latitude,
                 originLng: position.longitude,
                 destLat: destination!.latitude,
                 destLng: destination!.longitude,
               );
-              
+
               if (realTimeSeconds != null) {
                 // Verificar se deve alertar baseado no tempo
                 final alertTimeSeconds = (alertTimeMinutes * 60).round();
