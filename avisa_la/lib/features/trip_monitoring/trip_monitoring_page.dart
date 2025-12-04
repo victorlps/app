@@ -88,15 +88,12 @@ class _TripMonitoringPageState extends State<TripMonitoringPage> {
             widget.destination.longitude,
           );
 
-          // Estimar tempo de chegada
-          if (_currentSpeed != null && _currentSpeed! > 0) {
-            _estimatedTimeSeconds = DistanceCalculator.estimateArrivalTime(
-              _distanceToDestination!,
-              _currentSpeed!,
-            );
-          } else {
-            _estimatedTimeSeconds = null;
-          }
+          // Estimar tempo de chegada - SEMPRE calcula, usando fallback quando necessário
+          _estimatedTimeSeconds = DistanceCalculator.estimateArrivalTime(
+            _distanceToDestination!,
+            _currentSpeed ?? 0.0, // Usa 0 se velocidade for null, fallback será aplicado
+          );
+          print('⏱️ Tempo estimado: $_estimatedTimeSeconds segundos (velocidade: ${_currentSpeed ?? 0}m/s)');
 
           _updateMarkers();
 
@@ -250,6 +247,9 @@ class _TripMonitoringPageState extends State<TripMonitoringPage> {
       setState(() {
         _realEstimatedTimeSeconds = timeSeconds;
       });
+      print('🗺️ Tempo real Google Maps: $timeSeconds segundos');
+    } else {
+      print('⚠️ Tempo real Google Maps falhou - timeSeconds: $timeSeconds, mounted: $mounted');
     }
   }
 
@@ -387,33 +387,8 @@ class _TripMonitoringPageState extends State<TripMonitoringPage> {
                                       ),
                                     ],
                                   ),
-                                  // Mostrar tempo real do Google Maps se modo dinâmico estiver ativo
-                                  if (widget.useDynamicMode &&
-                                      _realEstimatedTimeSeconds != null)
-                                    Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          'Tempo Real (Maps)',
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: Colors.grey[600],
-                                          ),
-                                        ),
-                                        const SizedBox(height: 4),
-                                        Text(
-                                          DistanceCalculator.formatTime(
-                                              _realEstimatedTimeSeconds!),
-                                          style: const TextStyle(
-                                            fontSize: 24,
-                                            fontWeight: FontWeight.bold,
-                                            color: Colors.blue,
-                                          ),
-                                        ),
-                                      ],
-                                    )
-                                  else if (_estimatedTimeSeconds != null)
+                                  // Mostrar tempo estimado - SEMPRE visível
+                                  if (_estimatedTimeSeconds != null)
                                     Column(
                                       crossAxisAlignment:
                                           CrossAxisAlignment.start,
