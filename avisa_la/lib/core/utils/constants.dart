@@ -35,10 +35,13 @@ class AppConstants {
   static const String keyAlertDistance = 'alert_distance';
   static const String keyUseDynamicMode = 'use_dynamic_mode';
 
-  // Google Maps (substitua pela sua API Key)
-  static const String googleMapsApiKey = 'YOUR_GOOGLE_MAPS_API_KEY_HERE';
-
-  // Textos de notificação
+  // Google Maps & Places API Key
+  // Package: com.example.avisa_la
+  // SHA-1: 92:3C:59:2B:B5:B6:F7:67:B0:22:5C:B3:B7:52:05:CA:5A:43:D0:A3
+  static const String googleMapsApiKey = 'AIzaSyA6zgQ0rrgn4B67hkOh3F1Jorj9aITGjwg';
+  static const String googlePlacesApiKey = googleMapsApiKey;
+  // Backend proxy base URL. For a physical device on the same LAN.
+  static const String backendBaseUrl = 'http://192.168.0.47:8000';  // Textos de notificação
   static const String monitoringNotificationTitle = 'Avisa Lá está ativo';
   static String monitoringNotificationBody(String destinationName) =>
        'Monitorando para $destinationName';

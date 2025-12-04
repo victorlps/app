@@ -1,4 +1,5 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     package="com.example.avisa_la">
 
     <!-- Permissões de localização -->
@@ -49,12 +50,13 @@
         <service
             android:name="id.flutter.flutter_background_service.BackgroundService"
             android:foregroundServiceType="location"
-            android:exported="false" />
+            android:exported="false"
+            tools:replace="android:exported" />
 
         <!-- Google Maps API Key -->
         <meta-data
             android:name="com.google.android.geo.API_KEY"
-            android:value="AIzaSyC1rt4WghzL5ucAVWFi_YMD8xD92llic4s" />
+            android:value="AIzaSyA6zgQ0rrgn4B67hkOh3F1Jorj9aITGjwg" />
 
         <meta-data
             android:name="flutterEmbedding"
