@@ -8,6 +8,7 @@ import 'package:avisa_la/core/utils/constants.dart';
 import 'package:avisa_la/features/search/destination_search_page.dart';
 import 'package:avisa_la/features/trip_monitoring/trip_monitoring_page.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -27,11 +28,20 @@ class _HomePageState extends State<HomePage> {
   bool _isLoadingLocation = true;
   final Set<Marker> _markers = {};
   final Set<Polyline> _polylines = {};
+  String _appVersion = '';
 
   @override
   void initState() {
     super.initState();
+    _loadAppVersion();
     _loadCurrentLocation();
+  }
+
+  Future<void> _loadAppVersion() async {
+    final packageInfo = await PackageInfo.fromPlatform();
+    setState(() {
+      _appVersion = '${packageInfo.version}+${packageInfo.buildNumber}';
+    });
   }
 
   Future<void> _loadCurrentLocation() async {
@@ -232,7 +242,7 @@ class _HomePageState extends State<HomePage> {
                 borderRadius: BorderRadius.circular(4),
               ),
               child: Text(
-                'v${AppConstants.appVersion}',
+                _appVersion.isEmpty ? 'v...' : 'v$_appVersion',
                 style: const TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w500,
