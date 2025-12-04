@@ -40,6 +40,8 @@ class AppConstants {
   // SHA-1: 92:3C:59:2B:B5:B6:F7:67:B0:22:5C:B3:B7:52:05:CA:5A:43:D0:A3
   static const String googleMapsApiKey = 'AIzaSyA6zgQ0rrgn4B67hkOh3F1Jorj9aITGjwg';
   static const String googlePlacesApiKey = googleMapsApiKey;
+  static const String androidPackageName = 'com.example.avisa_la';
+  static const String androidCertificateSHA1 = '923C592BB5B6F767B0225CB3B75205CA5A43D0A3';
   // Backend proxy base URL. For a physical device on the same LAN.
   static const String backendBaseUrl = 'http://192.168.0.47:8000';  // Textos de notificação
   static const String monitoringNotificationTitle = 'Avisa Lá está ativo';

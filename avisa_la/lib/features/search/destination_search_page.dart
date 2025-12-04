@@ -92,8 +92,8 @@ class _DestinationSearchPageState extends State<DestinationSearchPage> {
         headers: {
           'Content-Type': 'application/json',
           'X-Goog-Api-Key': AppConstants.googleMapsApiKey,
-          'X-Android-Package': 'com.example.avisa_la',
-          'X-Android-Cert': '923C592BB5B6F767B0225CB3B75205CA5A43D0A3',
+          'X-Android-Package': AppConstants.androidPackageName,
+          'X-Android-Cert': AppConstants.androidCertificateSHA1,
         },
         body: json.encode(body),
       );
@@ -147,8 +147,8 @@ class _DestinationSearchPageState extends State<DestinationSearchPage> {
           'Content-Type': 'application/json',
           'X-Goog-Api-Key': AppConstants.googleMapsApiKey,
           'X-Goog-FieldMask': 'id,displayName,formattedAddress,location',
-          'X-Android-Package': 'com.example.avisa_la',
-          'X-Android-Cert': '923C592BB5B6F767B0225CB3B75205CA5A43D0A3',
+          'X-Android-Package': AppConstants.androidPackageName,
+          'X-Android-Cert': AppConstants.androidCertificateSHA1,
         },
       );
       
