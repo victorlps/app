@@ -36,7 +36,10 @@ class _TripMonitoringPageState extends State<TripMonitoringPage> {
   int? _realEstimatedTimeSeconds; // Tempo estimado real do Google Maps
   String _gpsQuality = 'Aguardando...';
   StreamSubscription<Position>? _positionStream;
-  Set<Marker> _markers = {};
+  Timer? _directionsTimer;
+  final Set<Marker> _markers = {};
+  bool _isAppBarVisible = true;
+  final ScrollController _scrollController = ScrollController();
   
 
   @override
@@ -431,6 +434,7 @@ class _TripMonitoringPageState extends State<TripMonitoringPage> {
   void dispose() {
     _cleanup();
     _mapController?.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 }
