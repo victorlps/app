@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:avisa_la/core/models/destination.dart';
 import 'package:avisa_la/core/services/background_service.dart';
 import 'package:avisa_la/core/services/geolocation_service.dart';
@@ -46,7 +47,12 @@ class _TripMonitoringPageState extends State<TripMonitoringPage> {
   void initState() {
     super.initState();
     print('🔵 TripMonitoringPage - useDynamicMode: ${widget.useDynamicMode}');
-    _startMonitoring();
+    // Aguarda primeiro frame para garantir que context tenha Localizations/Scaffold
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _startMonitoring();
+      }
+    });
   }
 
   Future<void> _startMonitoring() async {
@@ -59,31 +65,36 @@ class _TripMonitoringPageState extends State<TripMonitoringPage> {
     print('  Destino: ${widget.destination.name}');
     print('  Distância de alerta: ${widget.alertDistance}m');
 
-    // PASSO 1: Solicitar TODAS as permissões de alarme com diálogos educativos
-    // Isso segue as melhores práticas do Google:
-    // - Mostra educação ANTES de qualquer permissão
-    // - Solicita POST_NOTIFICATIONS (Android 13+)
-    // - Solicita SCHEDULE_EXACT_ALARM (Android 12+)
-    // - Solicita USE_FULL_SCREEN_INTENT (Android 11+)
+    // PASSO 1: Verificar e solicitar permissões APENAS se negadas
+    // (NÃO mostra diálogos se já foram concedidas)
     if (mounted) {
-      final hasPermissions =
-          await NotificationService.requestAlarmPermissionsWithEducation(context);
-      if (!hasPermissions) {
-        print('⚠️ Usuário negou permissões necessárias para alarme');
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                'Permissões de alarme negadas. '
-                'O alarme pode não funcionar corretamente.',
+      final notificationStatus = await Permission.notification.status;
+      final scheduleStatus = await Permission.scheduleExactAlarm.status;
+      
+      // Mostrar fluxo educativo APENAS se alguma permissão está pendente
+      if (!notificationStatus.isGranted || !scheduleStatus.isGranted) {
+        print('⚠️ Algumas permissões ainda precisam ser concedidas');
+        final hasPermissions =
+            await NotificationService.requestAlarmPermissionsWithEducation(context);
+        if (!hasPermissions) {
+          print('⚠️ Usuário negou permissões necessárias para alarme (seguiremos mesmo assim)');
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'Permissões de alarme negadas. O alarme pode não funcionar, '
+                  'mas a viagem seguirá.',
+                ),
+                duration: Duration(seconds: 3),
               ),
-              duration: Duration(seconds: 3),
-            ),
-          );
+            );
+          }
+        } else {
+          print('✅ Todas as permissões de alarme foram concedidas');
         }
-        return;
+      } else {
+        print('✅ Todas as permissões de alarme já foram concedidas');
       }
-      print('✅ Todas as permissões de alarme foram concedidas');
     }
 
     // PASSO 2: Iniciar serviço em segundo plano

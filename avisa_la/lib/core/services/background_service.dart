@@ -234,7 +234,8 @@ class BackgroundService {
           hasAlerted = true;
           _state = AlarmState.alarming;
 
-          // Mostrar notificação full-screen para acordar device
+          // ✅ APENAS mostrar notificação (som/vibração via notification channel)
+          // ❌ NÃO chamar AlarmService.startAlarm() em background (falha sem Activity)
           await NotificationService.showFullScreenAlarmNotification(
             destinationName: destination!.name,
             distance: distance,
@@ -245,7 +246,7 @@ class BackgroundService {
             'destination': destination!.name,
             'distance': distance,
           });
-          log('✅ Alarme disparado via GPS distance', level: 'INFO');
+          log('✅ Alarme disparado via notificação full-screen', level: 'INFO');
         }
       } catch (e, stackTrace) {
         log('❌ Erro ao processar GPS: $e', level: 'ERROR');
