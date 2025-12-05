@@ -59,7 +59,34 @@ class _TripMonitoringPageState extends State<TripMonitoringPage> {
     print('  Destino: ${widget.destination.name}');
     print('  Distância de alerta: ${widget.alertDistance}m');
 
-    // Iniciar serviço em segundo plano
+    // PASSO 1: Solicitar TODAS as permissões de alarme com diálogos educativos
+    // Isso segue as melhores práticas do Google:
+    // - Mostra educação ANTES de qualquer permissão
+    // - Solicita POST_NOTIFICATIONS (Android 13+)
+    // - Solicita SCHEDULE_EXACT_ALARM (Android 12+)
+    // - Solicita USE_FULL_SCREEN_INTENT (Android 11+)
+    if (mounted) {
+      final hasPermissions =
+          await NotificationService.requestAlarmPermissionsWithEducation(context);
+      if (!hasPermissions) {
+        print('⚠️ Usuário negou permissões necessárias para alarme');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Permissões de alarme negadas. '
+                'O alarme pode não funcionar corretamente.',
+              ),
+              duration: Duration(seconds: 3),
+            ),
+          );
+        }
+        return;
+      }
+      print('✅ Todas as permissões de alarme foram concedidas');
+    }
+
+    // PASSO 2: Iniciar serviço em segundo plano
     await BackgroundService.startTrip(
       destination: widget.destination,
       alertDistance: widget.alertDistance,

@@ -47,6 +47,11 @@ dependencies:
   intl: ^0.20.2
   shared_preferences: ^2.2.2
   uuid: ^4.3.3
+  
+  # Alarme Real (audio contínuo + wakelock)
+  audioplayers: ^6.1.0
+  wakelock_plus: ^1.2.8
+  vibration: ^2.0.0
 
 dev_dependencies:
   flutter_test:
@@ -55,6 +60,9 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  
+  assets:
+    - assets/sounds/alarm.mp3
   
   # assets:
   #   - assets/images/

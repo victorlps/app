@@ -173,7 +173,17 @@ class BackgroundService {
             destination!.longitude,
           );
 
-          await NotificationService.showArrivalNotification(distance: distance);
+          // Mostrar notificação full-screen para acordar device
+          await NotificationService.showFullScreenAlarmNotification(
+            destinationName: destination!.name,
+            distance: distance,
+          );
+
+          // Enviar evento para mostrar tela de alarme (quando app abrir)
+          service.invoke('showAlarm', {
+            'destination': destination!.name,
+            'distance': distance,
+          });
           log('✅ Alarme disparado via Directions API', level: 'INFO');
         }
       } catch (e, stackTrace) {
@@ -224,7 +234,17 @@ class BackgroundService {
           hasAlerted = true;
           _state = AlarmState.alarming;
 
-          await NotificationService.showArrivalNotification(distance: distance);
+          // Mostrar notificação full-screen para acordar device
+          await NotificationService.showFullScreenAlarmNotification(
+            destinationName: destination!.name,
+            distance: distance,
+          );
+
+          // Enviar evento para mostrar tela de alarme (quando app abrir)
+          service.invoke('showAlarm', {
+            'destination': destination!.name,
+            'distance': distance,
+          });
           log('✅ Alarme disparado via GPS distance', level: 'INFO');
         }
       } catch (e, stackTrace) {

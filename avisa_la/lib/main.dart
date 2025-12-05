@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:avisa_la/core/services/background_service.dart';
 import 'package:avisa_la/core/services/notification_service.dart';
 import 'package:avisa_la/core/services/permission_service.dart';
 import 'package:avisa_la/core/utils/build_tracker.dart';
 import 'package:avisa_la/features/home/home_page.dart';
+import 'package:avisa_la/features/alarm/alarm_screen.dart';
+
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -12,7 +16,32 @@ void main() async {
   await NotificationService.initialize();
   await BackgroundService.initialize();
 
+  // Configurar listener para eventos do background service
+  _setupBackgroundServiceListener();
+
   runApp(const MyApp());
+}
+
+/// Escuta eventos do background service
+void _setupBackgroundServiceListener() {
+  FlutterBackgroundService().on('showAlarm').listen((event) {
+    final context = navigatorKey.currentContext;
+    if (context != null && event != null) {
+      final destination = event['destination'] as String? ?? 'Destino';
+      final distance = event['distance'] as double? ?? 0.0;
+
+      // Navegar para tela de alarme
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => AlarmScreen(
+            destinationName: destination,
+            distanceMeters: distance,
+          ),
+          fullscreenDialog: true,
+        ),
+      );
+    }
+  });
 }
 
 class MyApp extends StatefulWidget {
@@ -34,6 +63,7 @@ class _MyAppState extends State<MyApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: navigatorKey,
       title: 'Avisa Lá',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
