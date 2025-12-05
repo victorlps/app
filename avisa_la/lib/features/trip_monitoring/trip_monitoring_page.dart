@@ -55,6 +55,10 @@ class _TripMonitoringPageState extends State<TripMonitoringPage> {
     // Flag para desenhar rota apenas na primeira posição
     bool routeDrawn = false;
 
+    print('🎯 TripMonitoringPage._startMonitoring() INICIADO');
+    print('  Destino: ${widget.destination.name}');
+    print('  Distância de alerta: ${widget.alertDistance}m');
+
     // Iniciar serviço em segundo plano
     await BackgroundService.startTrip(
       destination: widget.destination,
@@ -62,6 +66,7 @@ class _TripMonitoringPageState extends State<TripMonitoringPage> {
       useDynamicMode: widget.useDynamicMode,
       alertTimeMinutes: widget.alertTimeMinutes,
     );
+    print('✅ BackgroundService.startTrip() chamado');
 
     // Se modo dinâmico estiver ativo, iniciar timer para atualizar tempo real
     if (widget.useDynamicMode) {

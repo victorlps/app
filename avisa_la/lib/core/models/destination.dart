@@ -1,3 +1,4 @@
+@pragma('vm:entry-point')
 class Destination {
   final String name;
   final String address;
