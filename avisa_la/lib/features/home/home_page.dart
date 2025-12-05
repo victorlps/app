@@ -5,11 +5,10 @@ import 'package:avisa_la/core/services/geolocation_service.dart';
 import 'package:avisa_la/core/services/permission_service.dart';
 import 'package:avisa_la/core/services/directions_service.dart';
 import 'package:avisa_la/core/utils/constants.dart';
+import 'package:avisa_la/core/utils/build_tracker.dart';
 import 'package:avisa_la/features/search/destination_search_page.dart';
 import 'package:avisa_la/features/trip_monitoring/trip_monitoring_page.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:package_info_plus/package_info_plus.dart';
-import 'dart:io';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -29,49 +28,11 @@ class _HomePageState extends State<HomePage> {
   bool _isLoadingLocation = true;
   final Set<Marker> _markers = {};
   final Set<Polyline> _polylines = {};
-  String _appVersion = '';
 
   @override
   void initState() {
     super.initState();
-    _loadAppVersion();
     _loadCurrentLocation();
-  }
-
-  Future<void> _loadAppVersion() async {
-    try {
-      // Ler versão do pubspec.yaml em tempo real
-      final pubspecFile = File('pubspec.yaml');
-      if (await pubspecFile.exists()) {
-        final content = await pubspecFile.readAsString();
-        final versionMatch =
-            RegExp(r'version:\s*([0-9.+]+)').firstMatch(content);
-        if (versionMatch != null && mounted) {
-          final fullVersion = versionMatch.group(1) ?? '';
-          // Extrair apenas o timestamp (parte depois do +)
-          final parts = fullVersion.split('+');
-          setState(() {
-            _appVersion = parts.length > 1 ? parts[1] : fullVersion;
-          });
-          print('✅ Versão carregada do pubspec.yaml: $_appVersion');
-          return;
-        }
-      }
-    } catch (e) {
-      print('⚠️ Erro ao ler pubspec.yaml: $e');
-    }
-
-    // Fallback: ler do PackageInfo
-    try {
-      final packageInfo = await PackageInfo.fromPlatform();
-      if (mounted) {
-        setState(() {
-          _appVersion = '${packageInfo.version}+${packageInfo.buildNumber}';
-        });
-      }
-    } catch (e) {
-      print('⚠️ Erro ao carregar versão: $e');
-    }
   }
 
   Future<void> _loadCurrentLocation() async {
@@ -272,7 +233,7 @@ class _HomePageState extends State<HomePage> {
                 borderRadius: BorderRadius.circular(4),
               ),
               child: Text(
-                _appVersion.isEmpty ? 'v...' : 'v$_appVersion',
+                BuildTracker.buildTimestamp,
                 style: const TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w500,

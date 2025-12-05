@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:avisa_la/core/services/background_service.dart';
 import 'package:avisa_la/core/services/notification_service.dart';
 import 'package:avisa_la/core/services/permission_service.dart';
+import 'package:avisa_la/core/utils/build_tracker.dart';
 import 'package:avisa_la/features/home/home_page.dart';
 
 void main() async {
@@ -14,8 +15,21 @@ void main() async {
   runApp(const MyApp());
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({super.key});
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  // O método reassemble é chamado SEMPRE que ocorre um Hot Reload
+  @override
+  void reassemble() {
+    super.reassemble();
+    // Atualiza o timestamp automaticamente
+    BuildTracker.refresh();
+  }
 
   @override
   Widget build(BuildContext context) {

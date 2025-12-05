@@ -102,7 +102,7 @@ class _DestinationSearchPageState extends State<DestinationSearchPage> {
       );
 
       print('🔍 Response Status: ${response.statusCode}');
-      
+
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         print('🔍 Full Response: ${json.encode(data)}');
@@ -365,7 +365,8 @@ class PlacePrediction {
         structuredFormat?['secondaryText'] as Map<String, dynamic>?;
     final distance = placePrediction?['distanceMeters'] as int?;
 
-    print('📍 PlacePrediction.fromNewApi() keys: ${placePrediction?.keys.toList()}');
+    print(
+        '📍 PlacePrediction.fromNewApi() keys: ${placePrediction?.keys.toList()}');
     print('📍 Place: ${mainText?['text']} - Distance: ${distance}m');
 
     return PlacePrediction(

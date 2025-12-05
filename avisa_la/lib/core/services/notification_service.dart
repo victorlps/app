@@ -157,7 +157,9 @@ class NotificationService {
       playSound: true,
       enableVibration: true,
       vibrationPattern: Int64List.fromList([0, 1000, 500, 1000]),
-      actions: [
+      fullScreenIntent: true,
+      timeoutAfter: 60000, // 60 segundos
+      actions: const [
         AndroidNotificationAction(
           'confirm_arrival',
           'Cheguei ao Destino',
@@ -178,6 +180,7 @@ class NotificationService {
       iOS: iosDetails,
     );
 
+    print('🔔 Disparando notificação de alarme - Distância: $distance m');
     await _notifications.show(
       AppConstants.arrivalNotificationId,
       AppConstants.arrivalNotificationTitle,
@@ -197,6 +200,7 @@ class NotificationService {
       priority: Priority.high,
       playSound: true,
       enableVibration: true,
+      fullScreenIntent: true,
     );
 
     const DarwinNotificationDetails iosDetails = DarwinNotificationDetails(
@@ -211,6 +215,7 @@ class NotificationService {
       iOS: iosDetails,
     );
 
+    print('❌ Notificação de falha disparada');
     await _notifications.show(
       AppConstants.failureNotificationId,
       AppConstants.failureNotificationTitle,

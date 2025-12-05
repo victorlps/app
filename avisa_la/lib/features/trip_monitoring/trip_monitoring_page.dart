@@ -91,9 +91,11 @@ class _TripMonitoringPageState extends State<TripMonitoringPage> {
           // Estimar tempo de chegada - SEMPRE calcula, usando fallback quando necessário
           _estimatedTimeSeconds = DistanceCalculator.estimateArrivalTime(
             _distanceToDestination!,
-            _currentSpeed ?? 0.0, // Usa 0 se velocidade for null, fallback será aplicado
+            _currentSpeed ??
+                0.0, // Usa 0 se velocidade for null, fallback será aplicado
           );
-          print('⏱️ Tempo estimado: $_estimatedTimeSeconds segundos (velocidade: ${_currentSpeed ?? 0}m/s)');
+          print(
+              '⏱️ Tempo estimado: $_estimatedTimeSeconds segundos (velocidade: ${_currentSpeed ?? 0}m/s)');
 
           _updateMarkers();
 
@@ -249,7 +251,8 @@ class _TripMonitoringPageState extends State<TripMonitoringPage> {
       });
       print('🗺️ Tempo real Google Maps: $timeSeconds segundos');
     } else {
-      print('⚠️ Tempo real Google Maps falhou - timeSeconds: $timeSeconds, mounted: $mounted');
+      print(
+          '⚠️ Tempo real Google Maps falhou - timeSeconds: $timeSeconds, mounted: $mounted');
     }
   }
 
