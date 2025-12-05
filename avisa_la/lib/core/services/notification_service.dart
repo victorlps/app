@@ -1,5 +1,6 @@
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:flutter_background_service/flutter_background_service.dart';
 import 'dart:typed_data';
 import 'package:avisa_la/core/utils/constants.dart';
 import 'dart:io' show Platform;
@@ -110,9 +111,32 @@ class NotificationService {
       print('📱 Notificação tocada: ${response.payload}');
       print('  Action: ${response.actionId}');
 
+      // Handle alarme full-screen
+      if (response.payload?.startsWith('alarm_fullscreen') ?? false) {
+        print('🔔 Notificação de alarme tocada - preparando para abrir tela');
+        
+        // Parse payload: "alarm_fullscreen|destinationName|distance"
+        final parts = response.payload?.split('|');
+        if (parts != null && parts.length >= 3) {
+          final destination = parts[1];
+          final distance = double.tryParse(parts[2]) ?? 0.0;
+          
+          // ✅ IMPORTANTE: Invocar showAlarm para abrir a tela
+          // Este evento será escutado por main.dart
+          FlutterBackgroundService().invoke('showAlarm', {
+            'destination': destination,
+            'distance': distance,
+          });
+          
+          print('✅ Evento showAlarm invocado para: $destination');
+        }
+      }
+
       // Implementar navegação conforme necessário
       if (response.actionId == 'confirm_arrival') {
         print('✅ Usuário confirmou chegada');
+      } else if (response.actionId == 'dismiss_alarm') {
+        print('⛔ Usuário desativou alarme');
       }
     } catch (e, stackTrace) {
       print('❌ Erro ao processar notificação: $e');
@@ -569,6 +593,9 @@ class NotificationService {
         await plugin.createNotificationChannel(alarmChannel);
       }
 
+      // Criar payload com dados do alarme
+      final payload = 'alarm_fullscreen|$destinationName|$distance';
+
       final AndroidNotificationDetails androidDetails =
           AndroidNotificationDetails(
         'alarm_fullscreen_channel',
@@ -584,6 +611,19 @@ class NotificationService {
         enableVibration: true,
         vibrationPattern: Int64List.fromList([0, 500, 500, 500]),
         visibility: NotificationVisibility.public,
+        // ✅ CRÍTICO: Adicionar ação que pode ser interceptada
+        actions: const [
+          AndroidNotificationAction(
+            'dismiss_alarm',
+            'Desativar',
+            showsUserInterface: true,
+          ),
+          AndroidNotificationAction(
+            'confirm_arrival',
+            'Chegou',
+            showsUserInterface: true,
+          ),
+        ],
       );
 
       final NotificationDetails details = NotificationDetails(
@@ -595,10 +635,10 @@ class NotificationService {
         '🔔 Você está chegando!',
         '$destinationName - ${distance.round()}m',
         details,
-        payload: 'alarm_fullscreen',
+        payload: payload,
       );
 
-      print('✅ Notificação full-screen mostrada');
+      print('✅ Notificação full-screen mostrada com payload: $payload');
     } catch (e, stackTrace) {
       print('❌ Erro ao mostrar notificação full-screen: $e');
       print('Stack: $stackTrace');

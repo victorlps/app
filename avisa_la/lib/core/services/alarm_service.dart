@@ -4,6 +4,9 @@ import 'package:wakelock_plus/wakelock_plus.dart';
 
 /// Serviço de alarme real (não notificação)
 /// Toca som em loop + vibração contínua + wakelock
+/// 
+/// ⚠️ IMPORTANTE: WakelockPlus pode falhar em background isolate
+/// Envolver em try-catch para evitar crashes
 class AlarmService {
   static final AudioPlayer _audioPlayer = AudioPlayer();
   static bool _isPlaying = false;
@@ -15,9 +18,15 @@ class AlarmService {
     try {
       print('🔔 INICIANDO ALARME REAL');
 
-      // Habilitar wakelock (mantém tela ligada)
-      await WakelockPlus.enable();
-      print('✅ Wakelock ativado');
+      try {
+        // Habilitar wakelock (mantém tela ligada)
+        // ⚠️ Pode falhar em background isolate - envolver em try-catch
+        await WakelockPlus.enable();
+        print('✅ Wakelock ativado');
+      } catch (e) {
+        // Se falhar em background, continuamos sem wakelock
+        print('⚠️ Wakelock não disponível (background?): $e');
+      }
 
       // Configurar audio player para loop
       await _audioPlayer.setReleaseMode(ReleaseMode.loop);
@@ -69,8 +78,12 @@ class AlarmService {
       print('✅ Vibração cancelada');
 
       // Desabilitar wakelock
-      await WakelockPlus.disable();
-      print('✅ Wakelock desativado');
+      try {
+        await WakelockPlus.disable();
+        print('✅ Wakelock desativado');
+      } catch (e) {
+        print('⚠️ Erro ao desativar wakelock: $e');
+      }
     } catch (e, stackTrace) {
       print('❌ Erro ao parar alarme: $e');
       print('Stack: $stackTrace');

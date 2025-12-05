@@ -7,6 +7,7 @@ import 'package:avisa_la/core/utils/distance_calculator.dart';
 import 'package:avisa_la/core/utils/constants.dart';
 import 'package:avisa_la/core/services/notification_service.dart';
 import 'package:avisa_la/core/services/directions_service.dart';
+import 'package:avisa_la/core/services/alarm_service.dart';
 
 /// Estado da máquina de monitoramento
 enum AlarmState { idle, monitoring, alarming, dismissed }
@@ -234,8 +235,18 @@ class BackgroundService {
           hasAlerted = true;
           _state = AlarmState.alarming;
 
-          // ✅ APENAS mostrar notificação (som/vibração via notification channel)
-          // ❌ NÃO chamar AlarmService.startAlarm() em background (falha sem Activity)
+          // ✅ TENTAR iniciar alarme em background (com try-catch para falhas)
+          // Se falhar (WakelockPlus), continuamos com a notificação
+          try {
+            await AlarmService.startAlarm();
+            log('✅ Alarme iniciado em background', level: 'INFO');
+          } catch (e) {
+            log('⚠️ Alarme falhou em background (esperado): $e', level: 'WARNING');
+            // Continuamos mesmo assim - a notificação tem som próprio
+          }
+
+          // Mostrar notificação full-screen para acordar device
+          // Esta notificação tem som/vibração NATIVA que funciona em background
           await NotificationService.showFullScreenAlarmNotification(
             destinationName: destination!.name,
             distance: distance,
@@ -246,7 +257,7 @@ class BackgroundService {
             'destination': destination!.name,
             'distance': distance,
           });
-          log('✅ Alarme disparado via notificação full-screen', level: 'INFO');
+          log('✅ Alarme disparado via GPS distance', level: 'INFO');
         }
       } catch (e, stackTrace) {
         log('❌ Erro ao processar GPS: $e', level: 'ERROR');
