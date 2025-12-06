@@ -8,6 +8,7 @@ import 'package:avisa_la/core/services/geolocation_service.dart';
 import 'package:avisa_la/core/services/notification_service.dart';
 import 'package:avisa_la/core/services/directions_service.dart';
 import 'package:avisa_la/core/utils/distance_calculator.dart';
+import 'package:avisa_la/features/alarm/alarm_screen.dart';
 import 'dart:async';
 
 class TripMonitoringPage extends StatefulWidget {
@@ -38,6 +39,7 @@ class _TripMonitoringPageState extends State<TripMonitoringPage> {
   String _gpsQuality = 'Aguardando...';
   StreamSubscription<Position>? _positionStream;
   Timer? _directionsTimer; // Timer para atualizar tempo real periodicamente
+  StreamSubscription? _alarmStreamSubscription; // Escutar alarme disparado
   final Set<Marker> _markers = {};
   final Set<Polyline> _polylines = {};
   bool _isAppBarVisible = true;
@@ -47,6 +49,25 @@ class _TripMonitoringPageState extends State<TripMonitoringPage> {
   void initState() {
     super.initState();
     print('🔵 TripMonitoringPage - useDynamicMode: ${widget.useDynamicMode}');
+    
+    // ✅ ESCUTAR stream global de alarme (quando app está aberto)
+    _alarmStreamSubscription = NotificationService.onAlarmTriggered.listen((data) {
+      if (mounted) {
+        print('🔔 Alarme detectado em TripMonitoringPage: ${data['destination']}');
+        
+        // Navegar para AlarmScreen
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (context) => AlarmScreen(
+              destinationName: data['destination'] as String,
+              distanceMeters: data['distance'] as double,
+            ),
+            fullscreenDialog: true,
+          ),
+        );
+      }
+    });
+    
     // Aguarda primeiro frame para garantir que context tenha Localizations/Scaffold
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
@@ -672,6 +693,7 @@ class _TripMonitoringPageState extends State<TripMonitoringPage> {
   @override
   void dispose() {
     _cleanup();
+    _alarmStreamSubscription?.cancel(); // ✅ Limpar subscription do alarme
     _mapController?.dispose();
     _scrollController.dispose();
     super.dispose();

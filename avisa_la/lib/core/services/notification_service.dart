@@ -13,6 +13,13 @@ class NotificationService {
 
   static bool _initialized = false;
 
+  /// Stream global para notificar quando alarme dispara (usado pelo TripMonitoringPage)
+  /// Emite: {destination: String, distance: double}
+  static final StreamController<Map<String, dynamic>> _alarmTriggerController =
+      StreamController<Map<String, dynamic>>.broadcast();
+  static Stream<Map<String, dynamic>> get onAlarmTriggered =>
+      _alarmTriggerController.stream;
+
   /// Inicializa o serviço de notificações
   static Future<void> initialize() async {
     if (_initialized) return;
@@ -639,6 +646,13 @@ class NotificationService {
       );
 
       print('✅ Notificação full-screen mostrada com payload: $payload');
+
+      // ✅ EMITIR evento no stream global para TripMonitoringPage (quando app está aberto)
+      _alarmTriggerController.add({
+        'destination': destinationName,
+        'distance': distance,
+      });
+      print('✅ Evento de alarme emitido no stream (para app aberto)');
     } catch (e, stackTrace) {
       print('❌ Erro ao mostrar notificação full-screen: $e');
       print('Stack: $stackTrace');
