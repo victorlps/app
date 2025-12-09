@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io' show Platform;
 import 'dart:typed_data';
 
+import 'package:avisa_la/core/services/alarm_service.dart';
 import 'package:avisa_la/core/utils/constants.dart';
 import 'package:avisa_la/logger.dart';
 import 'package:flutter/material.dart';
@@ -211,11 +212,41 @@ class NotificationService {
         }
       }
 
-      // Implementar navegação conforme necessário
+      // ✅ Implementar ações dos botões da notificação
       if (response.actionId == 'confirm_arrival') {
-        Log.alarm('✅ Usuário confirmou chegada');
+        Log.alarm('✅ Usuário confirmou chegada via notificação');
+        
+        // Parar alarme sonoro se estiver tocando
+        try {
+          await AlarmService.stopAlarm();
+          Log.alarm('🔕 Som do alarme parado');
+        } catch (e) {
+          Log.alarm('⚠️ Erro ao parar alarme: $e', e);
+        }
+        
+        // Cancelar notificação
+        await cancelArrivalNotification();
+        
+        // Parar serviço de background
+        FlutterBackgroundService().invoke('stopTrip');
+        Log.alarm('⏹️ Viagem finalizada via botão "Cheguei"');
+        
       } else if (response.actionId == 'dismiss_alarm') {
-        Log.alarm('⛔ Usuário desativou alarme');
+        Log.alarm('⛔ Usuário desativou alarme via notificação');
+        
+        // Parar alarme sonoro se estiver tocando
+        try {
+          await AlarmService.stopAlarm();
+          Log.alarm('🔕 Som do alarme parado');
+        } catch (e) {
+          Log.alarm('⚠️ Erro ao parar alarme: $e', e);
+        }
+        
+        // Cancelar notificação de alarme
+        await cancelArrivalNotification();
+        
+        // Continuar monitoramento (não parar viagem, apenas silenciar alarme)
+        Log.alarm('🔇 Alarme silenciado, monitoramento continua');
       }
     } catch (e, stackTrace) {
       Log.alarm('❌ Erro ao processar notificação: $e', e, stackTrace);
@@ -735,8 +766,8 @@ class NotificationService {
 
       await _notifications.show(
         alarmNotificationId,
-        '🔔 Você está chegando!',
-        '$destinationName - ${distance.round()}m',
+        '🚨 CHEGANDO NO DESTINO!',
+        'Toque para abrir o app ou use os botões abaixo',
         details,
         payload: payload,
       );
