@@ -1,0 +1,68 @@
+# ====================================
+# COPILOT IGNORE - Otimizar Contexto
+# ====================================
+
+# --- Frontend (React) - NÃO É MOBILE ---
+app/frontend/
+**/node_modules/
+**/package-lock.json
+**/yarn.lock
+**/src/components/
+**/src/App.js
+**/public/
+**/plugins/
+
+# --- Backend (Python) - NÃO É MOBILE ---
+app/backend/
+**/*.pyc
+**/__pycache__/
+server.py
+
+# --- Build Outputs (Android) ---
+**/android/build/
+**/android/.gradle/
+**/android/app/build/
+**/ios/build/
+**/build/
+
+# --- Reports Gigantes (HTML) ---
+**/problems-report.html
+**/configuration-cache.html
+**/kotlin-build/
+
+# --- Flutter Generated ---
+**/.dart_tool/
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+**/.metadata
+**/flutter_export_environment.sh
+**/GeneratedPluginRegistrant.java
+
+# --- IDEs ---
+**/.idea/
+**/.vscode/launch.json
+**/*.iml
+**/.clinerules
+
+# --- Docs Redundantes (manter apenas README) ---
+SETUP_GUIDE.md
+FILES_GENERATED.md
+ADVANCED_TIPS.md
+ALARM_APP_REFACTORING.md
+NOTIFICATION_DEBUG_GUIDE.md
+
+# --- Assets Binários ---
+**/assets/**/*.png
+**/assets/**/*.jpg
+**/assets/**/*.mp3
+**/assets/**/*.ttf
+
+# --- Testes (carregar apenas quando necessário) ---
+**/test/**/*.dart
+
+# --- Scripts auxiliares ---
+scripts/dev.sh
+craco.config.js
+
+# --- Arquivos de configuração do Kotlin ---
+**/BootReceiver.kt
