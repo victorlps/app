@@ -1,13 +1,16 @@
 import 'dart:async';
+import 'dart:developer' as developer;
 import 'dart:ui';
+
+import 'package:avisa_la/core/models/destination.dart';
+import 'package:avisa_la/core/services/alarm_service.dart';
+import 'package:avisa_la/core/services/directions_service.dart';
+import 'package:avisa_la/core/services/notification_service.dart';
+import 'package:avisa_la/core/utils/constants.dart';
+import 'package:avisa_la/core/utils/distance_calculator.dart';
+import 'package:avisa_la/logger.dart';
 import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:avisa_la/core/models/destination.dart';
-import 'package:avisa_la/core/utils/distance_calculator.dart';
-import 'package:avisa_la/core/utils/constants.dart';
-import 'package:avisa_la/core/services/notification_service.dart';
-import 'package:avisa_la/core/services/directions_service.dart';
-import 'package:avisa_la/core/services/alarm_service.dart';
 
 /// Estado da máquina de monitoramento
 enum AlarmState { idle, monitoring, alarming, dismissed }
@@ -82,7 +85,7 @@ class BackgroundService {
     DartPluginRegistrant.ensureInitialized();
 
     // === STATE MACHINE ===
-    AlarmState _state = AlarmState.idle;
+    AlarmState state = AlarmState.idle;
 
     // === VARIÁVEIS DE MONITORAMENTO ===
     Destination? destination;
@@ -100,15 +103,15 @@ class BackgroundService {
     // === FUNÇÕES AUXILIARES ===
 
     /// Log estruturado
-    void log(String msg, {String level = 'DEBUG'}) {
-      final timestamp = DateTime.now().toString().split('.')[0];
-      print('[$timestamp] $level: $msg');
+    void log(String msg, {String level = 'DEBUG', Object? error}) {
+      developer.log(msg,
+          name: 'AvisaLa', level: _mapLevel(level), error: error);
     }
 
     /// Verificar e recuperar de erros
-    Future<void> _checkHealth() async {
+    Future<void> checkHealth() async {
       try {
-        if (_state == AlarmState.idle) return;
+        if (state == AlarmState.idle) return;
 
         if (destination == null) {
           log('⚠️ Health check: destino nulo', level: 'WARNING');
@@ -128,21 +131,24 @@ class BackgroundService {
     }
 
     /// Verificar chegada via Directions API (modo dinâmico)
-    Future<void> _checkDirectionsAPITime() async {
-      if (_state != AlarmState.monitoring || !useDynamicMode) return;
+    Future<void> checkDirectionsAPITime() async {
+      if (state != AlarmState.monitoring || !useDynamicMode) return;
       if (destination == null) return;
 
+      Position? position;
       try {
-        final position = await Geolocator.getCurrentPosition(
-          timeLimit: const Duration(seconds: 10),
-        ).catchError((e) {
-          log('⚠️ GPS timeout, usando última posição conhecida',
-              level: 'WARNING');
-          return null;
-        });
+        position = await Geolocator.getCurrentPosition(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.high,
+            timeLimit: Duration(seconds: 10),
+          ),
+        );
+      } catch (e) {
+        log('⚠️ GPS timeout ou erro: $e', level: 'WARNING');
+        return;
+      }
 
-        if (position == null) return;
-
+      try {
         final realTimeSeconds =
             await DirectionsService.getEstimatedTimeToDestination(
           originLat: position.latitude,
@@ -165,7 +171,7 @@ class BackgroundService {
           log('🔔 Condição Directions API atingida: ${realTimeSeconds}s <= ${alertTimeSeconds}s',
               level: 'WARNING');
           hasAlerted = true;
-          _state = AlarmState.alarming;
+          state = AlarmState.alarming;
 
           final distance = DistanceCalculator.calculateDistance(
             position.latitude,
@@ -175,10 +181,21 @@ class BackgroundService {
           );
 
           // Mostrar notificação full-screen para acordar device
-          await NotificationService.showFullScreenAlarmNotification(
-            destinationName: destination!.name,
-            distance: distance,
-          );
+          Log.alarm('🔔 [DIRECTIONS API] Tentando mostrar notificação full-screen');
+          Log.alarm('   📍 Destino: ${destination!.name}');
+          Log.alarm('   📏 Distância: ${distance.round()}m');
+          try {
+            await NotificationService.showFullScreenAlarmNotification(
+              destinationName: destination!.name,
+              distance: distance,
+            );
+            Log.alarm('✅ [DIRECTIONS API] Notificação enviada com sucesso!');
+          } catch (e, stack) {
+            Log.alarm('❌ [DIRECTIONS API] ERRO ao mostrar notificação: $e', e, stack);
+          }
+
+          // ⏱️ Aguardar 2s para dar tempo do Android abrir app via fullScreenIntent
+          await Future.delayed(const Duration(seconds: 2));
 
           // Enviar evento para mostrar tela de alarme (quando app abrir)
           service.invoke('showAlarm', {
@@ -194,8 +211,8 @@ class BackgroundService {
     }
 
     /// Processar posição do GPS
-    Future<void> _processGPSPosition(Position position) async {
-      if (_state == AlarmState.idle) return;
+    Future<void> processGPSPosition(Position position) async {
+      if (state == AlarmState.idle) return;
       if (destination == null) return;
 
       try {
@@ -233,7 +250,7 @@ class BackgroundService {
           log('🔔 Condição distância atingida: ${distance.toStringAsFixed(1)}m <= ${alertDistance}m',
               level: 'WARNING');
           hasAlerted = true;
-          _state = AlarmState.alarming;
+          state = AlarmState.alarming;
 
           // ✅ TENTAR iniciar alarme em background (com try-catch para falhas)
           // Se falhar (WakelockPlus), continuamos com a notificação
@@ -241,16 +258,28 @@ class BackgroundService {
             await AlarmService.startAlarm();
             log('✅ Alarme iniciado em background', level: 'INFO');
           } catch (e) {
-            log('⚠️ Alarme falhou em background (esperado): $e', level: 'WARNING');
+            log('⚠️ Alarme falhou em background (esperado): $e',
+                level: 'WARNING');
             // Continuamos mesmo assim - a notificação tem som próprio
           }
 
           // Mostrar notificação full-screen para acordar device
           // Esta notificação tem som/vibração NATIVA que funciona em background
-          await NotificationService.showFullScreenAlarmNotification(
-            destinationName: destination!.name,
-            distance: distance,
-          );
+          Log.alarm('🔔 [GPS DISTANCE] Tentando mostrar notificação full-screen');
+          Log.alarm('   📍 Destino: ${destination!.name}');
+          Log.alarm('   📏 Distância: ${distance.round()}m');
+          try {
+            await NotificationService.showFullScreenAlarmNotification(
+              destinationName: destination!.name,
+              distance: distance,
+            );
+            Log.alarm('✅ [GPS DISTANCE] Notificação enviada com sucesso!');
+          } catch (e, stack) {
+            Log.alarm('❌ [GPS DISTANCE] ERRO ao mostrar notificação: $e', e, stack);
+          }
+
+          // ⏱️ Aguardar 2s para dar tempo do Android abrir app via fullScreenIntent
+          await Future.delayed(const Duration(seconds: 2));
 
           // Enviar evento para mostrar tela de alarme (quando app abrir)
           service.invoke('showAlarm', {
@@ -266,7 +295,7 @@ class BackgroundService {
     }
 
     /// Iniciar GPS stream
-    void _startGPSStream() {
+    void startGPSStream() {
       try {
         positionStream = Geolocator.getPositionStream(
           locationSettings: const LocationSettings(
@@ -274,7 +303,7 @@ class BackgroundService {
             distanceFilter: AppConstants.gpsDistanceFilterMeters,
           ),
         ).listen(
-          _processGPSPosition,
+          processGPSPosition,
           onError: (e) {
             log('❌ GPS stream erro: $e', level: 'ERROR');
             // Fallback: continuar sem GPS
@@ -289,19 +318,19 @@ class BackgroundService {
     }
 
     /// Iniciar timers periódicos
-    void _startTimers() {
+    void startTimers() {
       try {
         // Health check a cada 30 segundos
         healthCheckTimer = Timer.periodic(
           const Duration(seconds: AppConstants.healthCheckIntervalSeconds),
-          (_) => _checkHealth(),
+          (_) => checkHealth(),
         );
 
         // Directions API check a cada 30 segundos (modo dinâmico)
         if (useDynamicMode) {
           directionsCheckTimer = Timer.periodic(
             const Duration(seconds: 30),
-            (_) => _checkDirectionsAPITime(),
+            (_) => checkDirectionsAPITime(),
           );
         }
 
@@ -313,13 +342,13 @@ class BackgroundService {
     }
 
     /// Parar tudo
-    void _stopAll() {
+    void stopAll() {
       try {
         positionStream?.cancel();
         healthCheckTimer?.cancel();
         directionsCheckTimer?.cancel();
         updateCount = 0;
-        _state = AlarmState.idle;
+        state = AlarmState.idle;
         log('✅ Monitoramento parado', level: 'INFO');
       } catch (e, stackTrace) {
         log('❌ Erro ao parar monitoramento: $e', level: 'ERROR');
@@ -329,7 +358,7 @@ class BackgroundService {
 
     // === LISTENER: START TRIP ===
     service.on('startTrip').listen((event) async {
-      if (_state != AlarmState.idle) {
+      if (state != AlarmState.idle) {
         log('⚠️ Monitoramento já em andamento', level: 'WARNING');
         return;
       }
@@ -366,7 +395,7 @@ class BackgroundService {
         }
 
         hasAlerted = false;
-        _state = AlarmState.monitoring;
+        state = AlarmState.monitoring;
 
         // === INICIALIZAR NOTIFICAÇÕES ===
         try {
@@ -384,7 +413,7 @@ class BackgroundService {
           await NotificationService.showMonitoringNotification(
             destinationName: destination!.name,
           );
-        } catch (e, stackTrace) {
+        } catch (e) {
           log('⚠️ Erro ao mostrar notificação inicial: $e', level: 'WARNING');
         }
 
@@ -399,12 +428,12 @@ class BackgroundService {
         log('════════════════════════════════', level: 'INFO');
 
         // === INICIAR MONITORAMENTO ===
-        _startGPSStream();
-        _startTimers();
+        startGPSStream();
+        startTimers();
       } catch (e, stackTrace) {
         log('❌ Erro CRÍTICO em startTrip: $e', level: 'ERROR');
         log('Stack: $stackTrace', level: 'DEBUG');
-        _state = AlarmState.idle;
+        state = AlarmState.idle;
         try {
           await NotificationService.showFailureNotification();
         } catch (_) {}
@@ -415,7 +444,7 @@ class BackgroundService {
     service.on('stopTrip').listen((event) async {
       try {
         log('⛔ Parando monitoramento...', level: 'INFO');
-        _stopAll();
+        stopAll();
         await NotificationService.cancelAllNotifications();
         service.stopSelf();
       } catch (e, stackTrace) {
@@ -426,10 +455,10 @@ class BackgroundService {
 
     // === LISTENER: UPDATE (Para solicitar update manual) ===
     service.on('update').listen((event) async {
-      if (_state == AlarmState.monitoring && destination != null) {
+      if (state == AlarmState.monitoring && destination != null) {
         try {
           final position = await Geolocator.getCurrentPosition();
-          await _processGPSPosition(position);
+          await processGPSPosition(position);
         } catch (e) {
           log('⚠️ Erro ao processar update manual: $e', level: 'WARNING');
         }
@@ -454,10 +483,23 @@ class BackgroundService {
   /// Log centralizado (para debug)
   static void _log(String msg,
       {String level = 'DEBUG', StackTrace? stackTrace}) {
-    final timestamp = DateTime.now().toString().split('.')[0];
-    print('[$timestamp] $level: $msg');
-    if (stackTrace != null) {
-      print('Stack trace:\n$stackTrace');
+    developer.log(msg,
+        name: 'AvisaLa',
+        level: _mapLevel(level),
+        stackTrace: stackTrace);
+  }
+
+  static int _mapLevel(String level) {
+    switch (level.toUpperCase()) {
+      case 'ERROR':
+        return 1000;
+      case 'WARNING':
+        return 900;
+      case 'INFO':
+        return 800;
+      case 'DEBUG':
+      default:
+        return 500;
     }
   }
 }

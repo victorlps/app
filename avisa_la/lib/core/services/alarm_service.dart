@@ -1,3 +1,5 @@
+import 'dart:developer' as developer;
+
 import 'package:audioplayers/audioplayers.dart';
 import 'package:vibration/vibration.dart';
 import 'package:wakelock_plus/wakelock_plus.dart';
@@ -16,16 +18,17 @@ class AlarmService {
     if (_isPlaying) return;
 
     try {
-      print('🔔 INICIANDO ALARME REAL');
+      developer.log('🔔 INICIANDO ALARME REAL', name: 'AvisaLa');
 
       try {
         // Habilitar wakelock (mantém tela ligada)
         // ⚠️ Pode falhar em background isolate - envolver em try-catch
         await WakelockPlus.enable();
-        print('✅ Wakelock ativado');
+        developer.log('✅ Wakelock ativado', name: 'AvisaLa');
       } catch (e) {
         // Se falhar em background, continuamos sem wakelock
-        print('⚠️ Wakelock não disponível (background?): $e');
+        developer.log('⚠️ Wakelock não disponível (background?): $e',
+            name: 'AvisaLa', error: e);
       }
 
       // Configurar audio player para loop
@@ -35,7 +38,8 @@ class AlarmService {
       // Tocar som do sistema (notification)
       // Usar asset local seria melhor, mas notification sound é garantido
       await _audioPlayer.play(AssetSource('sounds/alarm.mp3')).catchError((e) {
-        print('⚠️ Falha ao tocar asset, usando URL');
+        developer.log('⚠️ Falha ao tocar asset, usando URL',
+            name: 'AvisaLa', error: e);
         // Fallback: usar som do sistema
         return _audioPlayer.play(
           UrlSource(
@@ -45,18 +49,18 @@ class AlarmService {
       });
 
       _isPlaying = true;
-      print('✅ Som do alarme tocando em loop');
+      developer.log('✅ Som do alarme tocando em loop', name: 'AvisaLa');
 
       // Vibração contínua (se disponível)
-      final hasVibrator = await Vibration.hasVibrator() ?? false;
+      final hasVibrator = await Vibration.hasVibrator();
       if (hasVibrator) {
         // Vibrar em loop: 500ms on, 500ms off
         _startContinuousVibration();
-        print('✅ Vibração contínua iniciada');
+        developer.log('✅ Vibração contínua iniciada', name: 'AvisaLa');
       }
     } catch (e, stackTrace) {
-      print('❌ Erro ao iniciar alarme: $e');
-      print('Stack: $stackTrace');
+      developer.log('❌ Erro ao iniciar alarme: $e',
+          name: 'AvisaLa', error: e, stackTrace: stackTrace);
       rethrow;
     }
   }
@@ -66,27 +70,28 @@ class AlarmService {
     if (!_isPlaying) return;
 
     try {
-      print('⛔ PARANDO ALARME');
+      developer.log('⛔ PARANDO ALARME', name: 'AvisaLa');
 
       // Parar audio
       await _audioPlayer.stop();
       _isPlaying = false;
-      print('✅ Som parado');
+      developer.log('✅ Som parado', name: 'AvisaLa');
 
       // Parar vibração
       await Vibration.cancel();
-      print('✅ Vibração cancelada');
+      developer.log('✅ Vibração cancelada', name: 'AvisaLa');
 
       // Desabilitar wakelock
       try {
         await WakelockPlus.disable();
-        print('✅ Wakelock desativado');
+        developer.log('✅ Wakelock desativado', name: 'AvisaLa');
       } catch (e) {
-        print('⚠️ Erro ao desativar wakelock: $e');
+        developer.log('⚠️ Erro ao desativar wakelock: $e',
+            name: 'AvisaLa', error: e);
       }
     } catch (e, stackTrace) {
-      print('❌ Erro ao parar alarme: $e');
-      print('Stack: $stackTrace');
+      developer.log('❌ Erro ao parar alarme: $e',
+          name: 'AvisaLa', error: e, stackTrace: stackTrace);
     }
   }
 

@@ -1,0 +1,388 @@
+# REGRAS PARA IA - DESENVOLVIMENTO 100% ASSISTIDO POR IA
+
+## 🤖 CONTEXTO IMPORTANTE
+
+O desenvolvedor **NÃO codifica diretamente**. Toda interação é via IA.
+- ✅ A IA escreve 100% do código
+- ✅ A IA executa comandos via terminal
+- ✅ A IA faz build, testes e debug
+- ✅ O desenvolvedor apenas valida resultados no S23
+
+---
+
+## 🚨 PROBLEMA CRÍTICO RESOLVIDO
+
+**NUNCA interaja diretamente com o terminal do Flutter em execução!**
+
+### ❌ O QUE CAUSA PERDA DE CONEXÃO:
+- Enviar comandos ('r', 'R', 'q') para o terminal onde o app está rodando
+- Executar `flutter run` quando já existe uma instância rodando
+
+### ✅ SOLUÇÃO:
+
+**Para aplicar mudanças de código:**
+
+1. Crie/modifique o arquivo
+2. Informe ao usuário: "Arquivo criado/modificado. O hot reload pode não ocorrer automaticamente. Execute no VS Code: Salve o arquivo (Ctrl+S) ou use Shift+F5 + F5 para reiniciar."
+3. **NUNCA** envie 'r' para o terminal
+
+**Para testar mudanças:**
+```bash
+# Sempre use um NOVO terminal (não o do Flutter)
+cd avisa_la
+flutter run --debug --device-id=RQCW307SRFT
+```
+
+---
+
+## 📋 WORKFLOW PARA IA
+
+### 1. CRIAR/MODIFICAR CÓDIGO
+
+```markdown
+**Resposta da IA:**
+
+Criei o arquivo `lib/features/nova_feature/nova_page.dart`.
+
+**Próximos passos:**
+1. Se o app JÁ estiver rodando:
+   - Peça ao usuário para salvar o arquivo (Ctrl+S) no VS Code
+   - Ou reiniciar o debug (Shift+F5 + F5)
+
+2. Se o app NÃO estiver rodando:
+   - Execute: `flutter run --debug --device-id=RQCW307SRFT`
+```
+
+### 2. EXECUTAR TESTES
+
+```bash
+# Sempre em novo terminal
+cd avisa_la
+flutter test test/caminho/do/teste.dart
+```
+
+### 3. ANALISAR CÓDIGO
+
+```bash
+cd avisa_la
+flutter analyze
+```
+
+### 4. FORMATAR CÓDIGO
+
+```bash
+cd avisa_la
+dart format lib/ test/ -l 80
+```
+
+### 5. BUILD APK
+
+```bash
+cd avisa_la
+flutter build apk --debug
+```
+
+### 6. VER LOGS
+
+```bash
+# Em novo terminal
+adb logcat | grep -i "flutter\|avisa"
+```
+
+---
+
+## 🎯 ESTRUTURA DO PROJETO
+
+### Arquitetura:
+- **Feature-first**: Cada feature em sua pasta
+- **Provider**: State management
+- **Navegação padrão**: Flutter Navigator
+
+### Estrutura:
+```
+lib/
+├── features/
+│   ├── home/              # Tela principal com mapa
+│   ├── search/            # Busca de destino (Google Places)
+│   ├── trip_monitoring/   # Monitoramento GPS em tempo real
+│   └── alarm/             # Alarme quando próximo ao destino
+├── core/
+│   ├── models/            # Destination, TripStatus
+│   ├── services/          # GPS, Notifications, Background
+│   └── utils/             # Calculadores, constantes
+└── main.dart
+```
+
+### Dependências Principais:
+```yaml
+provider: ^6.1.1              # State management
+geolocator: ^14.0.2           # GPS
+flutter_background_service    # Serviço em segundo plano
+flutter_local_notifications   # Notificações
+google_maps_flutter: ^2.5.3   # Mapas
+audioplayers: ^6.1.0          # Som de alarme
+shared_preferences: ^2.2.2    # Storage local
+```
+
+---
+
+## 🔧 COMANDOS ÚTEIS PARA IA
+
+### Verificar Dispositivo:
+```bash
+flutter devices
+# Deve mostrar: SM S911B (RQCW307SRFT)
+```
+
+### Iniciar App (novo terminal):
+```bash
+cd avisa_la
+flutter run --debug --device-id=RQCW307SRFT
+```
+
+### Parar App:
+```bash
+# Não envie 'q' para o terminal do Flutter!
+# Instrua o usuário: "Pressione Shift+F5 no VS Code"
+```
+
+### Ver Logs de Erros:
+```bash
+# Novo terminal
+cd avisa_la
+flutter logs
+
+# Ou logs Android
+adb logcat | grep -E "flutter|avisa|ERROR|FATAL"
+```
+
+### Limpar e Rebuildar:
+```bash
+cd avisa_la
+flutter clean
+flutter pub get
+flutter run --debug --device-id=RQCW307SRFT
+```
+
+---
+
+## 🎨 PADRÕES DE CÓDIGO
+
+### Sempre use estes padrões:
+
+**Imports (ordem obrigatória):**
+```dart
+// 1. Dart SDK
+import 'dart:async';
+
+// 2. Flutter SDK
+import 'package:flutter/material.dart';
+
+// 3. Pacotes externos
+import 'package:provider/provider.dart';
+import 'package:geolocator/geolocator.dart';
+
+// 4. Imports locais
+import 'package:avisa_la/core/models/destination.dart';
+```
+
+**Naming:**
+- Classes: `PascalCase` → `TripMonitoringPage`
+- Arquivos: `snake_case` → `trip_monitoring_page.dart`
+- Variáveis: `camelCase` → `destinationName`
+- Constantes: `lowerCamelCase` → `kDefaultAlertDistance`
+
+**Widgets:**
+```dart
+class MyWidget extends StatelessWidget {
+  const MyWidget({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: _buildAppBar(),
+      body: _buildBody(),
+    );
+  }
+  
+  AppBar _buildAppBar() {
+    return AppBar(title: const Text('Título'));
+  }
+  
+  Widget _buildBody() {
+    return const Center(child: Text('Corpo'));
+  }
+}
+```
+
+---
+
+## 📱 DEVICE E AMBIENTE
+
+### Device de Teste:
+- **Samsung Galaxy S23** (SM-S911B)
+- Device ID: `RQCW307SRFT`
+- Conexão: USB
+- Android 16 (API 36)
+
+### Sistema:
+- Pop!_OS 22.04
+- Flutter 3.38.3
+- Dart 3.10.1
+- Bash shell
+
+### Sempre use:
+```bash
+--device-id=RQCW307SRFT
+# Ou simplesmente: --device-id=s23 (Flutter auto-detecta)
+```
+
+---
+
+## 🚀 FEATURES DO APP AVISA LÁ
+
+### 1. Background Service (GPS em segundo plano)
+```dart
+// Sempre verifique se está rodando antes
+await BackgroundService.isRunning();
+```
+
+### 2. Geolocalização
+```dart
+// Requer permissão "Always" para background
+final position = await GeolocationService.getCurrentPosition();
+```
+
+### 3. Notificações
+```dart
+// Sistema robusto com alta prioridade
+await NotificationService.showAlarmNotification(
+  title: 'Chegando!',
+  body: 'Você está próximo ao destino',
+);
+```
+
+### 4. Cálculo de Distância
+```dart
+// Fórmula de Haversine
+final distance = DistanceCalculator.calculateDistance(
+  lat1, lon1, lat2, lon2
+);
+```
+
+---
+
+## ⚠️ PERMISSÕES ANDROID (CRÍTICO)
+
+O app precisa destas permissões:
+
+```xml
+<!-- AndroidManifest.xml -->
+<uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+<uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+<uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+<uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+<uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+<uses-permission android:name="android.permission.WAKE_LOCK" />
+```
+
+---
+
+## 💡 PROCESSO COMPLETO DE DESENVOLVIMENTO COM IA
+
+### Ciclo típico:
+
+1. **IA cria/modifica código:**
+   ```
+   "Criei lib/features/nova/nova_page.dart"
+   ```
+
+2. **IA formata:**
+   ```bash
+   cd avisa_la && dart format lib/features/nova/ -l 80
+   ```
+
+3. **IA analisa:**
+   ```bash
+   cd avisa_la && flutter analyze
+   ```
+
+4. **IA testa (se houver testes):**
+   ```bash
+   cd avisa_la && flutter test
+   ```
+
+5. **IA instrui usuário:**
+   ```
+   "Se o app estiver rodando, salve o arquivo (Ctrl+S).
+    Caso contrário, execute: flutter run --debug --device-id=RQCW307SRFT"
+   ```
+
+6. **IA aguarda feedback do usuário sobre comportamento no S23**
+
+7. **IA corrige problemas baseado no feedback**
+
+---
+
+## 🐛 DEBUG E TROUBLESHOOTING
+
+### Quando há erro no app:
+
+1. **IA pede logs:**
+   ```
+   "Por favor, copie e cole aqui os logs do terminal onde o Flutter está rodando"
+   ```
+
+2. **IA analisa erro**
+
+3. **IA corrige o código**
+
+4. **IA formata novamente**
+
+5. **IA instrui:**
+   ```
+   "Reinicie o app: Shift+F5 + F5 no VS Code"
+   ```
+
+### Para erros de GPS/Background:
+
+```bash
+# IA pode pedir logs específicos do Android
+adb logcat | grep -i "geolocator\|background\|permission"
+```
+
+---
+
+## ✅ CHECKLIST PARA IA ANTES DE RESPONDER
+
+- [ ] Vou criar/modificar código?
+  - [ ] Formatei o código? (`dart format`)
+  - [ ] Analisei erros? (`flutter analyze`)
+  - [ ] Instruí sobre hot reload/restart?
+  
+- [ ] Vou executar comando?
+  - [ ] É em NOVO terminal (não o do Flutter)?
+  - [ ] Especifiquei `cd avisa_la`?
+  - [ ] Inclui `--device-id=RQCW307SRFT` se necessário?
+  
+- [ ] Vou pedir feedback?
+  - [ ] Especifiquei O QUE testar no S23?
+  - [ ] Pedi logs se necessário?
+  
+- [ ] Preciso de logs?
+  - [ ] Especifiquei qual comando executar?
+  - [ ] Pedi para copiar/colar o output?
+
+---
+
+## 🎯 OBJETIVO
+
+**Desenvolvimento 100% assistido por IA, sem perder conexão do debug!**
+
+- IA escreve todo o código
+- IA executa todos os comandos
+- IA corrige todos os erros
+- Usuário apenas valida no S23
+- Debug sempre conectado
+- Hot reload quando possível
+- Feedback rápido e claro

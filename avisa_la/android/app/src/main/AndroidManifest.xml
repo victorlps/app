@@ -2,39 +2,53 @@
     xmlns:tools="http://schemas.android.com/tools"
     package="com.example.avisa_la">
 
-    <!-- Permissões de localização -->
+    <!-- Permissoes de localizacao -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
 
-    <!-- Permissões de internet -->
+    <!-- Permissoes de internet -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
-    <!-- Permissões de serviço em segundo plano -->
+    <!-- Permissoes de servico em segundo plano -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
-    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
 
-    <!-- Permissões de notificações (Android 13+) -->
+    <!-- Permissoes de notificacoes (Android 13+) -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.VIBRATE" />
 
-    <!-- Permissões para alarmes full-screen (Google Best Practices) -->
-    <!-- Android 11+: Permite que notificações abram sobre lock screen -->
+    <!-- Permissoes especificas para aplicativos de ALARME (Google Best Practices) -->
+    
+    <!-- Android 10+: Permite que notificacoes de alarme abram fullscreen sobre lockscreen -->
     <uses-permission android:name="android.permission.USE_FULL_SCREEN_INTENT" />
-    <!-- Android 12+: Permite agendar alarmes com precisão -->
+    
+    <!-- Android 12+: Permite agendar alarmes exatos (requer aprovacao do usuario) -->
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
-    <!-- Fallback para Android 11 -->
+    
+    <!-- Android 13+: Alarmes exatos para funcoes core (nao requer aprovacao do usuario) -->
     <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+    
+    <!-- Android 12+: Permite que o servico foreground continue executando quando em background -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
+    
+    <!-- Receber boot completed para reiniciar alarmes apos reinicializacao -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    
+    <!-- Desabilitar otimizacoes de bateria para garantir execucao do alarme -->
+    <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
+    
+    <!-- Permitir trazer app para frente programaticamente -->
+    <uses-permission android:name="android.permission.REORDER_TASKS" />
 
     <application
         android:label="Avisa Lá"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
 
-        <!-- Atividade principal -->
+        <!-- Atividade principal configurada como APP DE ALARME -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -42,7 +56,10 @@
             android:theme="@style/LaunchTheme"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
             android:hardwareAccelerated="true"
-            android:windowSoftInputMode="adjustResize">
+            android:windowSoftInputMode="adjustResize"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
+            android:showForAllUsers="true">
 
             <meta-data
                 android:name="io.flutter.embedding.android.NormalTheme"
@@ -52,14 +69,36 @@
                 <action android:name="android.intent.action.MAIN"/>
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
+            
+            <intent-filter>
+                <action android:name="ALARM_FULL_SCREEN_ACTION"/>
+                <category android:name="android.intent.category.DEFAULT"/>
+            </intent-filter>
         </activity>
 
-        <!-- Serviço em segundo plano -->
+        <!-- Servico em segundo plano para monitoramento de localizacao e alarmes -->
         <service
             android:name="id.flutter.flutter_background_service.BackgroundService"
-            android:foregroundServiceType="location"
+            android:foregroundServiceType="location|specialUse"
             android:exported="false"
-            tools:replace="android:exported" />
+            tools:replace="android:exported">
+            <property
+                android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
+                android:value="alarm_clock" />
+        </service>
+
+        <!-- BroadcastReceiver para reiniciar alarmes apos boot -->
+        <receiver
+            android:name=".BootReceiver"
+            android:enabled="true"
+            android:exported="true"
+            android:directBootAware="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.QUICKBOOT_POWERON" />
+                <action android:name="android.intent.action.LOCKED_BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
 
         <!-- Google Maps API Key -->
         <meta-data

@@ -1,3 +1,5 @@
+import 'dart:developer' as developer;
+
 class BuildTracker {
   // Gera um timestamp em formato aa:mm:dd:hh:mm:ss
   static String _generateBuildTimestamp() {
@@ -16,6 +18,7 @@ class BuildTracker {
   /// Chama isso para forçar a renovação do timestamp (usado no Hot Reload)
   static void refresh() {
     buildTimestamp = _generateBuildTimestamp();
-    print("🔄 Build Timestamp atualizado: $buildTimestamp");
+    developer.log('🔄 Build Timestamp atualizado: $buildTimestamp',
+        name: 'AvisaLa');
   }
 }

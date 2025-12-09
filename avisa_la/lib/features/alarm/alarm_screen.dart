@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:avisa_la/core/services/alarm_service.dart';
-import 'package:avisa_la/core/services/background_service.dart';
+import 'package:avisa_la/logger.dart';
 
 /// Tela de alarme full-screen (overlay sobre tudo)
 /// Bloqueia interação até usuário confirmar
@@ -26,6 +26,10 @@ class _AlarmScreenState extends State<AlarmScreen>
   @override
   void initState() {
     super.initState();
+    
+    Log.alarm('🚨 [ALARM SCREEN] Iniciando AlarmScreen');
+    Log.alarm('   📍 Destino: ${widget.destinationName}');
+    Log.alarm('   📏 Distância: ${widget.distanceMeters.round()}m');
 
     // Animação de pulso
     _pulseController = AnimationController(
@@ -38,6 +42,7 @@ class _AlarmScreenState extends State<AlarmScreen>
     );
 
     // Iniciar alarme
+    Log.alarm('🔊 Iniciando som/vibração do alarme');
     AlarmService.startAlarm();
   }
 
@@ -50,20 +55,23 @@ class _AlarmScreenState extends State<AlarmScreen>
   }
 
   Future<void> _stopAlarm() async {
+    Log.alarm('⏹️ [ALARM SCREEN] Parando alarme');
     // Parar alarme
     await AlarmService.stopAlarm();
 
     // Fechar tela
     if (mounted) {
+      Log.alarm('🔙 Fechando AlarmScreen');
       Navigator.of(context).pop();
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
+    Log.alarm('🏗️ Construindo AlarmScreen');
+    return PopScope(
       // Impedir fechar com botão voltar
-      onWillPop: () async => false,
+      canPop: false,
       child: Scaffold(
         backgroundColor: Colors.orange.shade50,
         body: SafeArea(

@@ -1,6 +1,8 @@
-import 'package:geolocator/geolocator.dart';
-import 'package:avisa_la/core/utils/constants.dart';
 import 'dart:async';
+import 'dart:developer' as developer;
+
+import 'package:avisa_la/core/utils/constants.dart';
+import 'package:geolocator/geolocator.dart';
 
 class GeolocationService {
   static StreamSubscription<Position>? _positionStream;
@@ -14,11 +16,14 @@ class GeolocationService {
   static Future<Position?> getCurrentPosition() async {
     try {
       final position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+        ),
       );
       return position;
     } catch (e) {
-      print('Erro ao obter posição atual: $e');
+      developer.log('Erro ao obter posição atual: $e',
+          name: 'AvisaLa', error: e);
       return null;
     }
   }

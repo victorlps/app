@@ -1,6 +1,8 @@
 import 'dart:convert';
-import 'package:http/http.dart' as http;
+import 'dart:developer' as developer;
+
 import 'package:avisa_la/core/utils/constants.dart';
+import 'package:http/http.dart' as http;
 
 class DirectionsService {
   /// Faz uma requisição para a Routes API (New) do Google Maps
@@ -55,16 +57,18 @@ class DirectionsService {
         if (data['routes'] != null && data['routes'].isNotEmpty) {
           return data['routes'][0];
         } else {
-          print('⚠️ Routes API: Nenhuma rota encontrada');
+          developer.log('⚠️ Routes API: Nenhuma rota encontrada',
+              name: 'AvisaLa');
           return null;
         }
       } else {
-        print(
-            '❌ Erro na Routes API: ${response.statusCode} - ${response.body}');
+        developer.log(
+            '❌ Erro na Routes API: ${response.statusCode} - ${response.body}',
+            name: 'AvisaLa');
         return null;
       }
     } catch (e) {
-      print('❌ Erro na Routes API: $e');
+      developer.log('❌ Erro na Routes API: $e', name: 'AvisaLa', error: e);
       return null;
     }
   }
@@ -77,7 +81,7 @@ class DirectionsService {
     required double destLat,
     required double destLng,
   }) async {
-    print('🗺️ Routes API (New) Request - Tempo');
+    developer.log('🗺️ Routes API (New) Request - Tempo', name: 'AvisaLa');
 
     final route = await _makeRoutesApiRequest(
       originLat: originLat,
@@ -92,8 +96,9 @@ class DirectionsService {
       final durationStr = route['duration'] as String;
       final durationSeconds = int.parse(durationStr.replaceAll('s', ''));
 
-      print(
-          '✅ Tempo estimado (Routes API): ${durationSeconds}s (${(durationSeconds / 60).toStringAsFixed(1)} min)');
+        developer.log(
+          '✅ Tempo estimado (Routes API): ${durationSeconds}s (${(durationSeconds / 60).toStringAsFixed(1)} min)',
+          name: 'AvisaLa');
 
       return durationSeconds;
     }
@@ -109,7 +114,7 @@ class DirectionsService {
     required double destLat,
     required double destLng,
   }) async {
-    print('🗺️ Routes API (New) Request - Polyline');
+    developer.log('🗺️ Routes API (New) Request - Polyline', name: 'AvisaLa');
 
     final route = await _makeRoutesApiRequest(
       originLat: originLat,
@@ -125,7 +130,8 @@ class DirectionsService {
       // Decodifica o polyline
       final points = _decodePolyline(encodedPolyline);
 
-      print('✅ Rota obtida com ${points.length} pontos');
+        developer.log('✅ Rota obtida com ${points.length} pontos',
+          name: 'AvisaLa');
 
       return points;
     }
@@ -176,7 +182,8 @@ class DirectionsService {
     required double destLat,
     required double destLng,
   }) async {
-    print('🗺️ Routes API (New) Request - Distância');
+    developer.log('🗺️ Routes API (New) Request - Distância',
+        name: 'AvisaLa');
 
     final route = await _makeRoutesApiRequest(
       originLat: originLat,
@@ -189,8 +196,9 @@ class DirectionsService {
     if (route != null) {
       final distanceMeters = (route['distanceMeters'] as int).toDouble();
 
-      print(
-          '✅ Distância estimada: ${distanceMeters}m (${(distanceMeters / 1000).toStringAsFixed(1)} km)');
+        developer.log(
+          '✅ Distância estimada: ${distanceMeters}m (${(distanceMeters / 1000).toStringAsFixed(1)} km)',
+          name: 'AvisaLa');
 
       return distanceMeters;
     }

@@ -1,24 +1,28 @@
+import 'dart:async';
+import 'dart:io' show Platform;
+import 'dart:typed_data';
+
+import 'package:avisa_la/core/utils/constants.dart';
+import 'package:avisa_la/logger.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:flutter_background_service/flutter_background_service.dart';
-import 'dart:typed_data';
-import 'package:avisa_la/core/utils/constants.dart';
-import 'dart:io' show Platform;
-import 'package:flutter/material.dart';
-import 'dart:async';
+
+/// Dados de lançamento via notificação (app cold start)
+class AlarmLaunchData {
+  final String destination;
+  final double distance;
+  AlarmLaunchData({required this.destination, required this.distance});
+}
 
 class NotificationService {
   static final FlutterLocalNotificationsPlugin _notifications =
-      FlutterLocalNotificationsPlugin();
+    FlutterLocalNotificationsPlugin();
+  static const MethodChannel _alarmChannel = MethodChannel('com.example.avisa_la/alarm');
 
   static bool _initialized = false;
-
-  /// Stream global para notificar quando alarme dispara (usado pelo TripMonitoringPage)
-  /// Emite: {destination: String, distance: double}
-  static final StreamController<Map<String, dynamic>> _alarmTriggerController =
-      StreamController<Map<String, dynamic>>.broadcast();
-  static Stream<Map<String, dynamic>> get onAlarmTriggered =>
-      _alarmTriggerController.stream;
 
   /// Inicializa o serviço de notificações
   static Future<void> initialize() async {
@@ -52,7 +56,61 @@ class NotificationService {
     }
 
     _initialized = true;
-    print('✅ NotificationService inicializado');
+    Log.alarm('✅ NotificationService inicializado');
+  }
+
+  /// Retorna dados de lançamento se o app foi aberto a partir de uma notificação de alarme
+  /// ✅ FUNCIONA quando app é cold-started pela notificação full-screen
+  static Future<AlarmLaunchData?> getLaunchAlarmData() async {
+    try {
+      final details =
+          await _notifications.getNotificationAppLaunchDetails();
+      if (details == null || !details.didNotificationLaunchApp) {
+        Log.alarm('ℹ️ App não foi aberto por notificação');
+        return null;
+      }
+
+      final payload = details.notificationResponse?.payload;
+      if (payload == null) {
+        Log.alarm('ℹ️ Notificação sem payload');
+        return null;
+      }
+
+      if (!payload.startsWith('alarm_fullscreen')) {
+        Log.alarm('ℹ️ Notificação não é de alarme full-screen');
+        return null;
+      }
+
+      final parts = payload.split('|');
+      if (parts.length < 3) {
+        Log.alarm('⚠️ Payload inválido: $payload');
+        return null;
+      }
+
+      final destination = parts[1];
+      final distance = double.tryParse(parts[2]) ?? 0.0;
+      
+      Log.alarm('✅ Dados de alarme recuperados na cold start: $destination ($distance m)');
+      return AlarmLaunchData(destination: destination, distance: distance);
+    } catch (e, stackTrace) {
+      Log.alarm('❌ Erro ao getLaunchAlarmData: $e', e, stackTrace);
+      return null;
+    }
+  }
+
+  /// 🧪 DEBUG: Teste a notificação de alarme manualmente
+  /// Útil para verificar se o sistema de notificações está funcionando
+  static Future<void> testAlarmNotification() async {
+    Log.alarm('🧪 [TEST] Iniciando teste de notificação de alarme...');
+    try {
+      await showFullScreenAlarmNotification(
+        destinationName: 'TESTE - Estação Central',
+        distance: 250.5,
+      );
+      Log.alarm('✅ [TEST] Notificação de teste enviada com sucesso!');
+    } catch (e) {
+      Log.alarm('❌ [TEST] Erro ao enviar notificação de teste: $e', e);
+    }
   }
 
   /// Cria os channels de notificação (Android)
@@ -96,6 +154,21 @@ class NotificationService {
         vibrationPattern: Int64List.fromList([100, 1000, 500, 1000]),
       );
 
+      // ⏰ Channel de alarme full-screen (CRÍTICO - máxima prioridade)
+      final AndroidNotificationChannel alarmChannel =
+          AndroidNotificationChannel(
+        'alarm_fullscreen_channel',
+        '⏰ Alarmes de Proximidade',
+        description: 'Alarmes críticos que acordam o device quando você se aproxima do destino',
+        importance: Importance.max,
+        playSound: true,
+        enableVibration: true,
+        vibrationPattern: Int64List.fromList([0, 1000, 500, 1000, 500, 1000]),
+        enableLights: true,
+        ledColor: const Color.fromARGB(255, 255, 0, 0),
+        showBadge: true,
+      );
+
       final plugin = _notifications.resolvePlatformSpecificImplementation<
           AndroidFlutterLocalNotificationsPlugin>();
 
@@ -103,51 +176,49 @@ class NotificationService {
         await plugin.createNotificationChannel(monitoringChannel);
         await plugin.createNotificationChannel(arrivalChannel);
         await plugin.createNotificationChannel(failureChannel);
-        print('✅ Notification channels criados');
+        await plugin.createNotificationChannel(alarmChannel);
+        Log.alarm('✅ Notification channels criados (incluindo alarm_fullscreen_channel)');
       }
     } catch (e, stackTrace) {
-      print('❌ Erro ao criar notification channels: $e');
-      print('Stack: $stackTrace');
+      Log.alarm('❌ Erro ao criar notification channels: $e', e, stackTrace);
       rethrow;
     }
   }
 
   /// Callback quando notificação é tocada
-  static void _onNotificationTapped(NotificationResponse response) {
+  static void _onNotificationTapped(NotificationResponse response) async {
     try {
-      print('📱 Notificação tocada: ${response.payload}');
-      print('  Action: ${response.actionId}');
-
-      // Handle alarme full-screen
+      Log.alarm('📱 Notificação tocada: ${response.payload}');
       if (response.payload?.startsWith('alarm_fullscreen') ?? false) {
-        print('🔔 Notificação de alarme tocada - preparando para abrir tela');
-        
+        Log.alarm('🔔 Notificação de alarme tocada - app já deve estar aberto');
+
         // Parse payload: "alarm_fullscreen|destinationName|distance"
         final parts = response.payload?.split('|');
         if (parts != null && parts.length >= 3) {
           final destination = parts[1];
           final distance = double.tryParse(parts[2]) ?? 0.0;
-          
+
+          Log.alarm('🎯 Destino: $destination, Distância: $distance m');
+
           // ✅ IMPORTANTE: Invocar showAlarm para abrir a tela
           // Este evento será escutado por main.dart
           FlutterBackgroundService().invoke('showAlarm', {
             'destination': destination,
             'distance': distance,
           });
-          
-          print('✅ Evento showAlarm invocado para: $destination');
+
+          Log.alarm('✅ Evento showAlarm invocado para: $destination');
         }
       }
 
       // Implementar navegação conforme necessário
       if (response.actionId == 'confirm_arrival') {
-        print('✅ Usuário confirmou chegada');
+        Log.alarm('✅ Usuário confirmou chegada');
       } else if (response.actionId == 'dismiss_alarm') {
-        print('⛔ Usuário desativou alarme');
+        Log.alarm('⛔ Usuário desativou alarme');
       }
     } catch (e, stackTrace) {
-      print('❌ Erro ao processar notificação: $e');
-      print('Stack: $stackTrace');
+      Log.alarm('❌ Erro ao processar notificação: $e', e, stackTrace);
     }
   }
 
@@ -192,8 +263,8 @@ class NotificationService {
         details,
       );
     } catch (e, stackTrace) {
-      print('❌ Erro ao mostrar notificação de monitoramento: $e');
-      print('Stack: $stackTrace');
+      Log.alarm('❌ Erro ao mostrar notificação de monitoramento: $e', e,
+          stackTrace);
       rethrow;
     }
   }
@@ -240,7 +311,8 @@ class NotificationService {
         iOS: iosDetails,
       );
 
-      print('🔔 Alarme disparado - Distância: ${distance.toStringAsFixed(1)}m');
+      Log.alarm(
+          '🔔 Alarme disparado - Distância: ${distance.toStringAsFixed(1)}m');
       await _notifications.show(
         AppConstants.arrivalNotificationId,
         AppConstants.arrivalNotificationTitle,
@@ -248,8 +320,7 @@ class NotificationService {
         details,
       );
     } catch (e, stackTrace) {
-      print('❌ Erro ao mostrar alarme: $e');
-      print('Stack: $stackTrace');
+      Log.alarm('❌ Erro ao mostrar alarme: $e', e, stackTrace);
       rethrow;
     }
   }
@@ -281,7 +352,7 @@ class NotificationService {
         iOS: iosDetails,
       );
 
-      print('❌ Notificação de falha disparada');
+      Log.alarm('❌ Notificação de falha disparada');
       await _notifications.show(
         AppConstants.failureNotificationId,
         AppConstants.failureNotificationTitle,
@@ -289,8 +360,7 @@ class NotificationService {
         details,
       );
     } catch (e, stackTrace) {
-      print('❌ Erro ao mostrar notificação de falha: $e');
-      print('Stack: $stackTrace');
+      Log.alarm('❌ Erro ao mostrar notificação de falha: $e', e, stackTrace);
       rethrow;
     }
   }
@@ -299,8 +369,8 @@ class NotificationService {
   static Future<void> cancelMonitoringNotification() async {
     try {
       await _notifications.cancel(AppConstants.monitoringNotificationId);
-    } catch (e) {
-      print('⚠️ Erro ao cancelar monitoramento: $e');
+    } catch (e, stackTrace) {
+      Log.alarm('⚠️ Erro ao cancelar monitoramento: $e', e, stackTrace);
     }
   }
 
@@ -308,8 +378,8 @@ class NotificationService {
   static Future<void> cancelArrivalNotification() async {
     try {
       await _notifications.cancel(AppConstants.arrivalNotificationId);
-    } catch (e) {
-      print('⚠️ Erro ao cancelar alarme: $e');
+    } catch (e, stackTrace) {
+      Log.alarm('⚠️ Erro ao cancelar alarme: $e', e, stackTrace);
     }
   }
 
@@ -317,30 +387,9 @@ class NotificationService {
   static Future<void> cancelAllNotifications() async {
     try {
       await _notifications.cancelAll();
-      print('🗑️ Todas as notificações canceladas');
-    } catch (e) {
-      print('⚠️ Erro ao cancelar todas as notificações: $e');
-    }
-  }
-
-  /// Verifica o status atual das permissões de notificação
-  static Future<PermissionStatus> _checkNotificationPermission() async {
-    if (!Platform.isAndroid) return PermissionStatus.granted;
-    return await Permission.notification.status;
-  }
-
-  /// Verifica o status atual da permissão full-screen intent
-  static Future<PermissionStatus> _checkFullScreenIntentPermission() async {
-    if (!Platform.isAndroid) return PermissionStatus.granted;
-    
-    try {
-      // No Android, USO_FULL_SCREEN_INTENT é verificada via Settings
-      // Se já foi concedida uma vez, PermissionHandler não força novamente
-      final permission = Permission.scheduleExactAlarm; // Similar ao full-screen
-      return await permission.status;
-    } catch (e) {
-      print('⚠️ Erro ao verificar full-screen intent permission: $e');
-      return PermissionStatus.denied;
+      Log.alarm('🗑️ Todas as notificações canceladas');
+    } catch (e, stackTrace) {
+      Log.alarm('⚠️ Erro ao cancelar todas as notificações: $e', e, stackTrace);
     }
   }
 
@@ -351,17 +400,17 @@ class NotificationService {
       BuildContext context) async {
     if (!Platform.isAndroid) return true;
 
-    print('🔔 Iniciando fluxo de permissões para alarme...');
+    Log.alarm('🔔 Iniciando fluxo de permissões para alarme...');
 
     // PASSO 1: Mostrar diálogo educativo ANTES de qualquer permissão
     final shouldProceed = await _showAlarmEducationDialog(context);
     if (!shouldProceed) {
-      print('ℹ️ Usuário recusou iniciar fluxo de permissões');
+      Log.alarm('ℹ️ Usuário recusou iniciar fluxo de permissões');
       return false;
     }
 
     // PASSO 2: Solicitar POST_NOTIFICATIONS (Android 13+) - Básico para notificações
-    print('📲 Solicitando permissão de notificações...');
+    Log.alarm('📲 Solicitando permissão de notificações...');
     final notificationStatus = await _requestAndShowPermissionDialog(
       context,
       Permission.notification,
@@ -371,13 +420,13 @@ class NotificationService {
     );
 
     if (!notificationStatus.isGranted) {
-      print('⚠️ Permissão de notificações negada');
+      Log.alarm('⚠️ Permissão de notificações negada');
       return false;
     }
-    print('✅ Permissão de notificações concedida');
+    Log.alarm('✅ Permissão de notificações concedida');
 
     // PASSO 3: Solicitar SCHEDULE_EXACT_ALARM (Android 12+) - Para alarmes precisos
-    print('⏰ Solicitando permissão de alarmes precisos...');
+    Log.alarm('⏰ Solicitando permissão de alarmes precisos...');
     final scheduleStatus = await _requestAndShowPermissionDialog(
       context,
       Permission.scheduleExactAlarm,
@@ -387,14 +436,14 @@ class NotificationService {
     );
 
     if (!scheduleStatus.isGranted) {
-      print('⚠️ Permissão de alarmes precisos negada');
+      Log.alarm('⚠️ Permissão de alarmes precisos negada');
       return false;
     }
-    print('✅ Permissão de alarmes precisos concedida');
+    Log.alarm('✅ Permissão de alarmes precisos concedida');
 
-    print('✅✅✅ TODAS as permissões de alarme foram concedidas!');
-    print('💡 A permissão de Full-Screen Intent (USE_FULL_SCREEN_INTENT) será');
-    print('   solicitada automaticamente pelo sistema ao primeiro uso.');
+    Log.alarm('✅✅✅ TODAS as permissões de alarme foram concedidas!');
+    Log.alarm('💡 A permissão de Full-Screen Intent (USE_FULL_SCREEN_INTENT) será');
+    Log.alarm('   solicitada automaticamente pelo sistema ao primeiro uso.');
     return true;
   }
 
@@ -450,7 +499,7 @@ class NotificationService {
 
     // Se já concedida, retornar imediatamente
     if (currentStatus.isGranted) {
-      print('✅ $title já concedida');
+      Log.alarm('✅ $title já concedida');
       return currentStatus;
     }
 
@@ -485,19 +534,19 @@ class NotificationService {
           false;
 
       if (!shouldRequest) {
-        print('ℹ️ Usuário recusou $title');
+        Log.alarm('ℹ️ Usuário recusou $title');
         return PermissionStatus.denied;
       }
 
       // AGORA solicitar a permissão do sistema
       final result = await permission.request();
-      print('📱 Resultado da solicitação de $title: $result');
+      Log.alarm('📱 Resultado da solicitação de $title: $result');
       return result;
     }
 
     // Se foi negada permanentemente
     if (currentStatus.isPermanentlyDenied) {
-      print('❌ $title foi negada permanentemente');
+      Log.alarm('❌ $title foi negada permanentemente');
       if (context.mounted) {
         await _showPermanentlyDeniedDialog(context, title);
       }
@@ -548,114 +597,165 @@ class NotificationService {
     );
   }
 
-  /// Diálogo exibido quando full-screen intent foi negada (mas as outras permissões foram ok)
-  static Future<void> _showPermissionPartiallyDeniedDialog(
-    BuildContext context,
-  ) async {
-    return showDialog(
-      context: context,
-      builder: (BuildContext dialogContext) {
-        return AlertDialog(
-          icon: const Icon(Icons.info, color: Colors.orange),
-          title: const Text('Alarme Parcialmente Funcional'),
-          content: const Text(
-            'O alarme ainda funcionará, mas você verá a notificação como um card '
-            'em vez de uma tela cheia.\n\n'
-            'Para a experiência completa, você pode ativar essa permissão nas configurações.',
-            style: TextStyle(fontSize: 15),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('Ok'),
-            ),
-          ],
-        );
-      },
-    );
+  /// Dispara alarme full-screen nativo via MethodChannel
+  /// Esta é a solução mais confiável para abrir o app mesmo com tela bloqueada
+  static Future<bool> _showNativeFullScreenAlarm({
+    required String destinationName,
+    required double distance,
+  }) async {
+    if (!Platform.isAndroid) return false;
+    
+    try {
+      Log.alarm('📱 [NATIVE] Chamando alarme full-screen nativo');
+      final result = await _alarmChannel.invokeMethod('showFullScreenAlarm', {
+        'destination': destinationName,
+        'distance': distance,
+      });
+      return result == true;
+    } catch (e, stackTrace) {
+      Log.alarm('⚠️ [NATIVE] Falha ao chamar alarme nativo: $e', e, stackTrace);
+      return false;
+    }
   }
 
-  /// Mostra notificação de alarme full-screen
+  /// Mostra notificação de alarme full-screen conforme Google Best Practices
+  /// Referência: https://developer.android.com/training/scheduling/alarms
   static Future<void> showFullScreenAlarmNotification({
     required String destinationName,
     required double distance,
   }) async {
     try {
-      // Channel específico para alarmes full-screen
-      final AndroidNotificationChannel alarmChannel =
-          AndroidNotificationChannel(
-        'alarm_fullscreen_channel',
-        'Alarmes Full-Screen',
-        description: 'Alarmes críticos que acordam o device',
-        importance: Importance.max,
-        playSound: true,
-        enableVibration: true,
-        vibrationPattern: Int64List.fromList([0, 500, 500, 500]),
+      Log.alarm('🔔 [ALARM] Iniciando showFullScreenAlarmNotification');
+      Log.alarm('   📍 Destino: $destinationName');
+      Log.alarm('   📏 Distância: ${distance.round()}m');
+
+      // STEP 1: Tentar abrir via método nativo (mais confiável)
+      final nativeSuccess = await _showNativeFullScreenAlarm(
+        destinationName: destinationName,
+        distance: distance,
       );
-
-      final plugin = _notifications.resolvePlatformSpecificImplementation<
-          AndroidFlutterLocalNotificationsPlugin>();
-
-      if (plugin != null) {
-        await plugin.createNotificationChannel(alarmChannel);
+      
+      if (nativeSuccess) {
+        Log.alarm('✅ [NATIVE] Alarme disparado via método nativo!');
+      } else {
+        Log.alarm('⚠️ [NATIVE] Falhou, usando fallback Flutter');
       }
 
-      // Criar payload com dados do alarme
+      // STEP 2: Sempre criar notificação Flutter (para mostrar no drawer)
+      // Verificar permissão de notificação
+      final notificationPermission = await Permission.notification.status;
+      Log.alarm('   🔐 Permissão POST_NOTIFICATIONS: $notificationPermission');
+      
+      if (!notificationPermission.isGranted) {
+        Log.alarm('❌ [ALARM] POST_NOTIFICATIONS não concedida! Notificação não será mostrada.');
+        Log.alarm('   💡 Solicite a permissão em PermissionService.requestPhase1Permissions()');
+        return;
+      }
+
+      // Payload com dados do alarme
       final payload = 'alarm_fullscreen|$destinationName|$distance';
 
+      // ✅ CONFIGURAÇÃO DE ALARME CRÍTICO (Google Best Practices)
       final AndroidNotificationDetails androidDetails =
           AndroidNotificationDetails(
         'alarm_fullscreen_channel',
-        'Alarmes Full-Screen',
+        '⏰ Alarmes de Proximidade',
         channelDescription: 'Alarmes críticos que acordam o device',
+        
+        // CRITICAL: Máxima prioridade e importância
         importance: Importance.max,
         priority: Priority.max,
+        
+        // Categoria ALARM - informa ao Android que é um alarme real
         category: AndroidNotificationCategory.alarm,
+        
+        // ✅ USE_FULL_SCREEN_INTENT - Android 10+ (API 29+)
+        // Permite que notificação abra automaticamente sobre lockscreen
         fullScreenIntent: true,
-        autoCancel: false,
-        ongoing: true,
+        
+        // Comportamento persistente
+        autoCancel: false, // Não cancela automaticamente
+        ongoing: true, // Persiste até ação do usuário
+        
+        // Som e vibração fortes
         playSound: true,
+        // SEM som personalizado - usar padrão do canal
         enableVibration: true,
-        vibrationPattern: Int64List.fromList([0, 500, 500, 500]),
+        vibrationPattern: Int64List.fromList([0, 1000, 500, 1000, 500, 1000]),
+        
+        // Visibilidade pública (aparece sobre lockscreen)
         visibility: NotificationVisibility.public,
-        // ✅ CRÍTICO: Adicionar ação que pode ser interceptada
+        
+        // Ticker (texto de preview na barra de status)
+        ticker: '🚨 AVISA LÁ: Alarme de Proximidade',
+        
+        // ✅ Ações do alarme (UX recomendada pelo Google)
         actions: const [
           AndroidNotificationAction(
             'dismiss_alarm',
-            'Desativar',
+            '🔕 Desativar Alarme',
             showsUserInterface: true,
+            cancelNotification: true,
           ),
           AndroidNotificationAction(
             'confirm_arrival',
-            'Chegou',
+            '✅ Cheguei!',
             showsUserInterface: true,
+            cancelNotification: true,
           ),
         ],
+        
+        // Estilo de notificação grande
+        styleInformation: BigTextStyleInformation(
+          'Você está a ${distance.round()}m de $destinationName.\n\n'
+          'Toque para ver detalhes ou use os botões abaixo.',
+          htmlFormatBigText: false,
+          contentTitle: '🔔 Chegando em $destinationName',
+          htmlFormatContentTitle: false,
+          summaryText: 'Alarme Avisa Lá',
+        ),
+        
+        // LED para dispositivos compatíveis
+        enableLights: true,
+        ledColor: const Color.fromARGB(255, 255, 0, 0),
+        ledOnMs: 1000,
+        ledOffMs: 500,
+        
+        // Badge no ícone do app
+        number: 1,
+        showWhen: true,
       );
 
       final NotificationDetails details = NotificationDetails(
         android: androidDetails,
       );
 
+      // ID fixo para alarmes (facilita gerenciamento)
+      const int alarmNotificationId = 999;
+
       await _notifications.show(
-        999,
+        alarmNotificationId,
         '🔔 Você está chegando!',
         '$destinationName - ${distance.round()}m',
         details,
         payload: payload,
       );
 
-      print('✅ Notificação full-screen mostrada com payload: $payload');
-
-      // ✅ EMITIR evento no stream global para TripMonitoringPage (quando app está aberto)
-      _alarmTriggerController.add({
-        'destination': destinationName,
-        'distance': distance,
-      });
-      print('✅ Evento de alarme emitido no stream (para app aberto)');
+      Log.alarm('✅ [ALARM APP] Notificação full-screen criada:');
+      Log.alarm('   📍 Destino: $destinationName');
+      Log.alarm('   📏 Distância: ${distance.round()}m');
+      Log.alarm('   🎯 Payload: $payload');
+      Log.alarm('   ⚠️ Requer USE_FULL_SCREEN_INTENT permission');
     } catch (e, stackTrace) {
-      print('❌ Erro ao mostrar notificação full-screen: $e');
-      print('Stack: $stackTrace');
+      Log.alarm('❌ ERRO CRÍTICO ao criar notificação de alarme:');
+      Log.alarm('   Erro: $e');
+      Log.alarm('   Stack: $stackTrace', e, stackTrace);
+      
+      // Verificar se permissões estão corretas
+      Log.alarm('⚠️ Verifique se as permissões no AndroidManifest.xml estão corretas:');
+      Log.alarm('   - USE_FULL_SCREEN_INTENT');
+      Log.alarm('   - SCHEDULE_EXACT_ALARM (Android 12+)');
+      Log.alarm('   - POST_NOTIFICATIONS (Android 13+)');
     }
   }
 }

@@ -1,15 +1,16 @@
-import 'package:flutter/material.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:geolocator/geolocator.dart';
-import 'package:permission_handler/permission_handler.dart';
+import 'dart:async';
+
 import 'package:avisa_la/core/models/destination.dart';
 import 'package:avisa_la/core/services/background_service.dart';
+import 'package:avisa_la/core/services/directions_service.dart';
 import 'package:avisa_la/core/services/geolocation_service.dart';
 import 'package:avisa_la/core/services/notification_service.dart';
-import 'package:avisa_la/core/services/directions_service.dart';
 import 'package:avisa_la/core/utils/distance_calculator.dart';
-import 'package:avisa_la/features/alarm/alarm_screen.dart';
-import 'dart:async';
+import 'package:avisa_la/logger.dart';
+import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 class TripMonitoringPage extends StatefulWidget {
   final Destination destination;
@@ -39,7 +40,6 @@ class _TripMonitoringPageState extends State<TripMonitoringPage> {
   String _gpsQuality = 'Aguardando...';
   StreamSubscription<Position>? _positionStream;
   Timer? _directionsTimer; // Timer para atualizar tempo real periodicamente
-  StreamSubscription? _alarmStreamSubscription; // Escutar alarme disparado
   final Set<Marker> _markers = {};
   final Set<Polyline> _polylines = {};
   bool _isAppBarVisible = true;
@@ -48,26 +48,7 @@ class _TripMonitoringPageState extends State<TripMonitoringPage> {
   @override
   void initState() {
     super.initState();
-    print('🔵 TripMonitoringPage - useDynamicMode: ${widget.useDynamicMode}');
-    
-    // ✅ ESCUTAR stream global de alarme (quando app está aberto)
-    _alarmStreamSubscription = NotificationService.onAlarmTriggered.listen((data) {
-      if (mounted) {
-        print('🔔 Alarme detectado em TripMonitoringPage: ${data['destination']}');
-        
-        // Navegar para AlarmScreen
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (context) => AlarmScreen(
-              destinationName: data['destination'] as String,
-              distanceMeters: data['distance'] as double,
-            ),
-            fullscreenDialog: true,
-          ),
-        );
-      }
-    });
-    
+    Log.alarm('🔵 TripMonitoringPage - useDynamicMode: ${widget.useDynamicMode}');
     // Aguarda primeiro frame para garantir que context tenha Localizations/Scaffold
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
@@ -82,23 +63,25 @@ class _TripMonitoringPageState extends State<TripMonitoringPage> {
     // Flag para desenhar rota apenas na primeira posição
     bool routeDrawn = false;
 
-    print('🎯 TripMonitoringPage._startMonitoring() INICIADO');
-    print('  Destino: ${widget.destination.name}');
-    print('  Distância de alerta: ${widget.alertDistance}m');
+    Log.alarm('🎯 TripMonitoringPage._startMonitoring() INICIADO');
+    Log.alarm('  Destino: ${widget.destination.name}');
+    Log.alarm('  Distância de alerta: ${widget.alertDistance}m');
 
     // PASSO 1: Verificar e solicitar permissões APENAS se negadas
     // (NÃO mostra diálogos se já foram concedidas)
     if (mounted) {
       final notificationStatus = await Permission.notification.status;
       final scheduleStatus = await Permission.scheduleExactAlarm.status;
-      
+
       // Mostrar fluxo educativo APENAS se alguma permissão está pendente
       if (!notificationStatus.isGranted || !scheduleStatus.isGranted) {
-        print('⚠️ Algumas permissões ainda precisam ser concedidas');
+        Log.alarm('⚠️ Algumas permissões ainda precisam ser concedidas');
         final hasPermissions =
-            await NotificationService.requestAlarmPermissionsWithEducation(context);
+            await NotificationService.requestAlarmPermissionsWithEducation(
+                context);
         if (!hasPermissions) {
-          print('⚠️ Usuário negou permissões necessárias para alarme (seguiremos mesmo assim)');
+            Log.alarm(
+              '⚠️ Usuário negou permissões necessárias para alarme (seguiremos mesmo assim)');
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
@@ -111,10 +94,10 @@ class _TripMonitoringPageState extends State<TripMonitoringPage> {
             );
           }
         } else {
-          print('✅ Todas as permissões de alarme foram concedidas');
+          Log.alarm('✅ Todas as permissões de alarme foram concedidas');
         }
       } else {
-        print('✅ Todas as permissões de alarme já foram concedidas');
+      Log.alarm('✅ Todas as permissões de alarme já foram concedidas');
       }
     }
 
@@ -125,7 +108,7 @@ class _TripMonitoringPageState extends State<TripMonitoringPage> {
       useDynamicMode: widget.useDynamicMode,
       alertTimeMinutes: widget.alertTimeMinutes,
     );
-    print('✅ BackgroundService.startTrip() chamado');
+    Log.alarm('✅ BackgroundService.startTrip() chamado');
 
     // Se modo dinâmico estiver ativo, iniciar timer para atualizar tempo real
     if (widget.useDynamicMode) {
@@ -158,7 +141,7 @@ class _TripMonitoringPageState extends State<TripMonitoringPage> {
             _currentSpeed ??
                 0.0, // Usa 0 se velocidade for null, fallback será aplicado
           );
-          print(
+            Log.alarm(
               '⏱️ Tempo estimado: $_estimatedTimeSeconds segundos (velocidade: ${_currentSpeed ?? 0}m/s)');
 
           _updateMarkers();
@@ -220,7 +203,7 @@ class _TripMonitoringPageState extends State<TripMonitoringPage> {
       return;
     }
 
-    print('🗺️ Buscando rota para viagem...');
+    Log.alarm('🗺️ Buscando rota para viagem...');
 
     final routePoints = await DirectionsService.getRoutePolyline(
       originLat: _currentPosition!.latitude,
@@ -244,7 +227,7 @@ class _TripMonitoringPageState extends State<TripMonitoringPage> {
         );
       });
 
-      print('✅ Rota desenhada na viagem com ${routePoints.length} pontos!');
+      Log.alarm('✅ Rota desenhada na viagem com ${routePoints.length} pontos!');
     }
   }
 
@@ -313,9 +296,9 @@ class _TripMonitoringPageState extends State<TripMonitoringPage> {
       setState(() {
         _realEstimatedTimeSeconds = timeSeconds;
       });
-      print('🗺️ Tempo real Google Maps: $timeSeconds segundos');
+      Log.alarm('🗺️ Tempo real Google Maps: $timeSeconds segundos');
     } else {
-      print(
+      Log.alarm(
           '⚠️ Tempo real Google Maps falhou - timeSeconds: $timeSeconds, mounted: $mounted');
     }
   }
@@ -331,17 +314,18 @@ class _TripMonitoringPageState extends State<TripMonitoringPage> {
   Color _getDistanceColor() {
     if (_distanceToDestination == null) return Colors.grey;
     if (_distanceToDestination! <= widget.alertDistance) return Colors.red;
-    if (_distanceToDestination! <= widget.alertDistance * 2)
+    if (_distanceToDestination! <= widget.alertDistance * 2) {
       return Colors.orange;
+    }
     return Colors.green;
   }
 
   @override
   Widget build(BuildContext context) {
-    return WillPopScope(
-      onWillPop: () async {
-        await _stopMonitoring();
-        return false;
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (!didPop) await _stopMonitoring();
       },
       child: Scaffold(
         body: NotificationListener<ScrollNotification>(
@@ -693,7 +677,6 @@ class _TripMonitoringPageState extends State<TripMonitoringPage> {
   @override
   void dispose() {
     _cleanup();
-    _alarmStreamSubscription?.cancel(); // ✅ Limpar subscription do alarme
     _mapController?.dispose();
     _scrollController.dispose();
     super.dispose();

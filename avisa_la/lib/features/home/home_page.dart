@@ -8,6 +8,7 @@ import 'package:avisa_la/core/utils/constants.dart';
 import 'package:avisa_la/core/utils/build_tracker.dart';
 import 'package:avisa_la/features/search/destination_search_page.dart';
 import 'package:avisa_la/features/trip_monitoring/trip_monitoring_page.dart';
+import 'package:avisa_la/logger.dart';
 import 'package:geolocator/geolocator.dart';
 
 class HomePage extends StatefulWidget {
@@ -156,7 +157,7 @@ class _HomePageState extends State<HomePage> {
       return;
     }
 
-    print('🗺️ Buscando rota...');
+    Log.alarm('🗺️ Buscando rota...');
 
     final routePoints = await DirectionsService.getRoutePolyline(
       originLat: _currentPosition!.latitude,
@@ -180,7 +181,7 @@ class _HomePageState extends State<HomePage> {
         );
       });
 
-      print('✅ Rota desenhada no mapa com ${routePoints.length} pontos!');
+      Log.alarm('✅ Rota desenhada no mapa com ${routePoints.length} pontos!');
     }
   }
 

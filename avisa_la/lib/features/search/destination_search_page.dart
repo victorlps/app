@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'dart:async';
 import 'package:avisa_la/core/models/destination.dart';
 import 'package:avisa_la/core/utils/constants.dart';
+import 'package:avisa_la/logger.dart';
 import 'package:geolocator/geolocator.dart';
 
 class DestinationSearchPage extends StatefulWidget {
@@ -87,8 +88,8 @@ class _DestinationSearchPageState extends State<DestinationSearchPage> {
         }
       };
 
-      print('🔍 Autocomplete Request URL: $url');
-      print('🔍 Request Body: ${json.encode(body)}');
+      Log.alarm('🔍 Autocomplete Request URL: $url');
+      Log.alarm('🔍 Request Body: ${json.encode(body)}');
 
       final response = await http.post(
         url,
@@ -101,11 +102,11 @@ class _DestinationSearchPageState extends State<DestinationSearchPage> {
         body: json.encode(body),
       );
 
-      print('🔍 Response Status: ${response.statusCode}');
+      Log.alarm('🔍 Response Status: ${response.statusCode}');
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        print('🔍 Full Response: ${json.encode(data)}');
+        Log.alarm('🔍 Full Response: ${json.encode(data)}');
 
         if (data['suggestions'] != null && mounted) {
           final predictions = (data['suggestions'] as List)
@@ -119,17 +120,17 @@ class _DestinationSearchPageState extends State<DestinationSearchPage> {
           setState(() {
             _predictions = predictions;
           });
-          print('✅ Found ${_predictions.length} predictions');
+          Log.alarm('✅ Found ${_predictions.length} predictions');
         } else {
           setState(() {
             _predictions = [];
           });
-          print('⚠️ Zero results');
+          Log.alarm('⚠️ Zero results');
         }
       } else {
         final data = json.decode(response.body);
         final errorMsg = data['error']?['message'] ?? 'Erro desconhecido';
-        print('❌ API Error: $errorMsg');
+        Log.alarm('❌ API Error: $errorMsg');
         _showError('Erro na busca: $errorMsg');
       }
     } catch (e) {
@@ -148,7 +149,7 @@ class _DestinationSearchPageState extends State<DestinationSearchPage> {
         'https://places.googleapis.com/v1/places/$placeId',
       );
 
-      print('📍 Place Details Request URL: $url');
+      Log.alarm('📍 Place Details Request URL: $url');
 
       final response = await http.get(
         url,
@@ -161,8 +162,8 @@ class _DestinationSearchPageState extends State<DestinationSearchPage> {
         },
       );
 
-      print('📍 Response Status: ${response.statusCode}');
-      print('📍 Response Body: ${response.body}');
+      Log.alarm('📍 Response Status: ${response.statusCode}');
+      Log.alarm('📍 Response Body: ${response.body}');
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
@@ -178,17 +179,17 @@ class _DestinationSearchPageState extends State<DestinationSearchPage> {
             longitude: location['longitude'],
             placeId: placeId,
           );
-          print('✅ Place details retrieved successfully');
+          Log.alarm('✅ Place details retrieved successfully');
           Navigator.pop(context, destination);
         }
       } else {
         final data = json.decode(response.body);
         final errorMsg = data['error']?['message'] ?? 'Erro desconhecido';
-        print('❌ Place Details API Error: $errorMsg');
+        Log.alarm('❌ Place Details API Error: $errorMsg');
         _showError('Erro ao obter detalhes: $errorMsg');
       }
     } catch (e) {
-      print('❌ Exception in _getPlaceDetails: $e');
+      Log.alarm('❌ Exception in _getPlaceDetails: $e');
       _showError('Erro ao buscar detalhes do lugar: $e');
     }
   }
@@ -365,9 +366,9 @@ class PlacePrediction {
         structuredFormat?['secondaryText'] as Map<String, dynamic>?;
     final distance = placePrediction?['distanceMeters'] as int?;
 
-    print(
-        '📍 PlacePrediction.fromNewApi() keys: ${placePrediction?.keys.toList()}');
-    print('📍 Place: ${mainText?['text']} - Distance: ${distance}m');
+    Log.alarm(
+      '📍 PlacePrediction.fromNewApi() keys: ${placePrediction?.keys.toList()}');
+    Log.alarm('📍 Place: ${mainText?['text']} - Distance: ${distance}m');
 
     return PlacePrediction(
       placeId: placePrediction?['placeId'] as String? ?? '',
